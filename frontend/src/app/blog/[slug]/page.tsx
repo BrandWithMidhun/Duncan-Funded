@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Navbar, TickerBar } from '@/components/Navbar';
+import { Navbar } from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import TradingBackground from '@/components/TradingBackground';
 import BlogCard from '@/components/BlogCard';
@@ -103,7 +103,6 @@ export default async function BlogPostPage({ params }: Props) {
         ])}
       />
       <Navbar />
-      <TickerBar />
 
       {/* Article header */}
       <header className="relative pt-40 pb-12 overflow-hidden">

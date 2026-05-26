@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Navbar, TickerBar } from '@/components/Navbar';
+import { Navbar } from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import PageHeader from '@/components/PageHeader';
 import ProgramsSection from '@/components/ProgramsSection';
@@ -22,7 +22,6 @@ export default function ProgramsPage() {
         ])}
       />
       <Navbar />
-      <TickerBar />
       <PageHeader title="FUNDING PROGRAMS" subtitle="Choose your path. Earn your capital." />
       <ProgramsSection />
       <Footer />

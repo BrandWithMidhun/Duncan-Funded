@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
-import { Navbar, TickerBar } from '@/components/Navbar';
+import { Navbar } from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import PageHeader from '@/components/PageHeader';
 import { JsonLd, breadcrumbSchema } from '@/lib/seo';
@@ -37,7 +37,6 @@ export default function AboutPage() {
         ])}
       />
       <Navbar />
-      <TickerBar />
 
       <PageHeader
         title="OUR HERITAGE"

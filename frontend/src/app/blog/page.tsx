@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Navbar, TickerBar } from '@/components/Navbar';
+import { Navbar } from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import PageHeader from '@/components/PageHeader';
 import BlogCard from '@/components/BlogCard';
@@ -60,7 +60,6 @@ export default async function BlogIndexPage({
         ])}
       />
       <Navbar />
-      <TickerBar />
 
       <PageHeader
         title="THE DUNCAN JOURNAL"

@@ -77,12 +77,14 @@ export default function HeroSection() {
 
           <div className="flex flex-col sm:flex-row items-center gap-4">
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
-              <Link
-                href="/programs"
+              <a
+                href="https://duncanfundeddashboard.propaccount.com/en/sign-up"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="block px-10 py-4 gold-gradient text-background font-display text-sm tracking-[0.2em] uppercase rounded-sm shadow-lg shadow-gold/20 hover:shadow-gold/40 transition-shadow"
               >
                 Begin Your Challenge
-              </Link>
+              </a>
             </motion.div>
             <Link
               href="/about"

@@ -55,9 +55,10 @@ then:
 
 ```bash
 cd backend
-cp .env.example .env        # set DATABASE_URL + a strong ADMIN_API_KEY
+cp .env.example .env        # set DATABASE_URL, JWT_SECRET, ADMIN_EMAIL/PASSWORD
 npm install
 npm run seed                # creates the schema + loads 6 sample blog posts
+npm run setup:admin         # creates the admin login from ADMIN_EMAIL/PASSWORD
 npm run dev                 # API on http://localhost:4000
 ```
 
@@ -102,7 +103,14 @@ Base URL: `http://localhost:4000`
 | `GET` | `/api/newsletter/unsubscribe/:token` | Unsubscribe via emailed token |
 | `POST` | `/api/contact` | Body: `{ name, email, message }` |
 
-### Admin endpoints (require `x-api-key` header)
+### Auth endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/auth/login` | Exchange `{ email, password }` for a JWT |
+| `GET` | `/api/auth/me` | Return the current admin (requires Bearer token) |
+
+### Admin endpoints (require `Authorization: Bearer <token>`)
 
 | Method | Path | Description |
 |---|---|---|
@@ -113,21 +121,10 @@ Base URL: `http://localhost:4000`
 | `GET` | `/api/admin/subscribers` | List newsletter subscribers |
 | `GET` | `/api/admin/messages` | List contact submissions |
 
-Example — create a post:
-
-```bash
-curl -X POST http://localhost:4000/api/admin/posts \
-  -H "Content-Type: application/json" \
-  -H "x-api-key: change-me-to-a-long-random-string" \
-  -d '{
-    "title": "My New Post",
-    "excerpt": "A short summary used in listings and meta tags.",
-    "content": "## Heading\n\nMarkdown body of the article.",
-    "categoryName": "Strategy",
-    "tags": ["forex", "tips"],
-    "status": "PUBLISHED"
-  }'
-```
+In normal use you do not call these directly — the **admin dashboard**
+(`/admin`) does it for you. Sign in at `/admin/login` with the credentials
+created by `npm run setup:admin`, and the dashboard handles posts,
+subscribers, and messages through this API.
 
 Newsletter signups are created through the footer form on every page and the
 `POST /api/newsletter/subscribe` endpoint.
@@ -160,7 +157,10 @@ Newsletter signups are created through the footer form on every page and the
 | `NODE_ENV` | `development` | Environment |
 | `CORS_ORIGINS` | `http://localhost:3000` | Comma-separated allowed origins |
 | `SITE_URL` | `http://localhost:3000` | Public site URL (unsubscribe links) |
-| `ADMIN_API_KEY` | — | Key protecting admin endpoints — **change this** |
+| `JWT_SECRET` | — | Secret for signing admin session tokens — **set this** |
+| `ADMIN_EMAIL` | — | Login email for the admin account |
+| `ADMIN_PASSWORD` | — | Login password (min. 8 chars) for the admin account |
+| `ADMIN_NAME` | `Site Admin` | Display name for the admin |
 
 ### `frontend/.env.local`
 
@@ -171,23 +171,37 @@ Newsletter signups are created through the footer form on every page and the
 
 ---
 
-## Roadmap — Phase 2: full CMS
+## Admin panel
 
-The backend is intentionally structured so the next phase drops in cleanly:
+The site includes a built-in admin panel — an authenticated content
+management dashboard:
 
-1. **Authentication** — replace the `x-api-key` guard with JWT sessions for the
-   existing `users` table (`ADMIN` / `EDITOR` roles already modelled).
-2. **Admin UI** — an authenticated dashboard for posts, categories, subscribers,
-   and contact messages.
-3. **Rich editing** — a markdown / WYSIWYG editor plus image uploads
+- **Sign in** at `/admin/login` with the admin account created by
+  `npm run setup:admin`.
+- **Dashboard** (`/admin`) — at-a-glance counts of posts, subscribers, and
+  messages.
+- **Posts** (`/admin/posts`) — list, create, edit, and delete blog articles
+  with a Markdown editor, category, tags, status (draft / published /
+  archived), featured flag, and optional SEO overrides.
+- **Subscribers** (`/admin/subscribers`) — view newsletter signups, with CSV
+  export.
+- **Messages** (`/admin/messages`) — read contact-form submissions.
+
+Authentication uses JWT sessions with bcrypt-hashed passwords. Admin routes are
+protected on the backend and excluded from search-engine indexing.
+
+## Roadmap — future enhancements
+
+The backend is structured so further CMS features drop in cleanly:
+
+1. **Rich editing** — a WYSIWYG editor plus image uploads
    (e.g. to S3 / Cloudflare R2).
-4. **Database migrations** — introduce a migration tool (e.g. `node-pg-migrate`)
+2. **Multiple editors** — the `users` table already models `ADMIN` / `EDITOR`
+   roles; a user-management screen would let admins invite editors.
+3. **Database migrations** — introduce a migration tool (e.g. `node-pg-migrate`)
    so schema changes are versioned rather than applied on boot.
-5. **Newsletter delivery** — connect an email provider (e.g. Resend, SES) to send
+4. **Newsletter delivery** — connect an email provider (e.g. Resend, SES) to send
    campaigns to subscribers, with double opt-in confirmation.
-
-PostgreSQL is already in place from Phase 1, so the CMS work builds directly on
-the existing schema and service layer — no data-layer rewrite is needed.
 
 ## Deployment
 
@@ -198,8 +212,8 @@ services and a managed PostgreSQL database on Railway.
 
 ## Tech stack
 
-**Backend:** Node.js, Express, PostgreSQL (pg), Zod, Helmet, CORS,
-express-rate-limit, Morgan.
+**Backend:** Node.js, Express, PostgreSQL (pg), JWT (jsonwebtoken), bcryptjs,
+Zod, Helmet, CORS, express-rate-limit, Morgan.
 
 **Frontend:** Next.js 16 (App Router), React 18, Tailwind CSS, Framer Motion,
 react-markdown.

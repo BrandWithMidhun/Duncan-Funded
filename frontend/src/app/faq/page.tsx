@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Navbar, TickerBar } from '@/components/Navbar';
+import { Navbar } from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import PageHeader from '@/components/PageHeader';
 import FAQSection from '@/components/FAQSection';
@@ -24,7 +24,6 @@ export default function FAQPage() {
         ])}
       />
       <Navbar />
-      <TickerBar />
       <PageHeader title="FREQUENT QUESTIONS" subtitle="Answers from the Duncan council." />
       <FAQSection />
       <Footer />

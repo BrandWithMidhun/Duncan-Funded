@@ -1,4 +1,4 @@
-import { Navbar, TickerBar } from '@/components/Navbar';
+import { Navbar } from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import HeroSection from '@/components/HeroSection';
 import ProgramsSection from '@/components/ProgramsSection';
@@ -12,7 +12,6 @@ export default function HomePage() {
     <div className="min-h-screen bg-pine">
       <JsonLd data={faqPageSchema(faqData)} />
       <Navbar />
-      <TickerBar />
       <HeroSection />
       <ProgramsSection />
       <HowItWorksSection />

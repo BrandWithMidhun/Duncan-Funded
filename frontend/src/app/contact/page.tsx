@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Navbar, TickerBar } from '@/components/Navbar';
+import { Navbar } from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import PageHeader from '@/components/PageHeader';
 import ContactForm from '@/components/ContactForm';
@@ -22,7 +22,6 @@ export default function ContactPage() {
         ])}
       />
       <Navbar />
-      <TickerBar />
       <PageHeader
         title="SUMMON THE CLAN"
         subtitle="Questions, partnerships, or press inquiries — reach the Duncan council."

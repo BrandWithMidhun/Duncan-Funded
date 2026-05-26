@@ -27,11 +27,14 @@ You will need:
 - A **GitHub account** with this project pushed to a repository
   (see `GIT_WORKFLOW.md`).
 - A **Railway account** — sign up at railway.app (GitHub login is easiest).
-- A strong **admin API key**. Generate one and keep it handy:
+- A strong **JWT secret** for signing admin sessions. Generate one and keep it handy:
 
   ```bash
   openssl rand -hex 32
   ```
+
+- An **admin email and password** of your choosing — used to create the
+  admin login account after deployment.
 
 > Account creation and authorising Railway against your GitHub are steps only
 > you can perform — they require your own credentials.
@@ -97,7 +100,10 @@ Service → **Variables** → add the following:
 |---|---|
 | `NODE_ENV` | `production` |
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` — reference the Postgres service |
-| `ADMIN_API_KEY` | the key you generated with `openssl rand -hex 32` |
+| `JWT_SECRET` | the secret you generated with `openssl rand -hex 32` |
+| `ADMIN_EMAIL` | the email you will log in to the admin panel with |
+| `ADMIN_PASSWORD` | a strong admin password (min. 8 characters) |
+| `ADMIN_NAME` | a display name for the admin (optional) |
 | `CORS_ORIGINS` | the frontend's public URL (fill in after Step 5) |
 | `SITE_URL` | the frontend's public URL (fill in after Step 5) |
 
@@ -123,24 +129,30 @@ https://backend-production-xxxx.up.railway.app
 
 Copy it — you need it for the frontend in Step 5.
 
-### 4d. Deploy and seed the database
+### 4d. Deploy, seed the database, and create the admin
 
 The backend will deploy automatically. The schema is created on first start.
-To load the 6 sample blog posts, run the seed **once**:
-
-- Open the backend service → the **⋮** menu → or use the Railway CLI.
-
-Using the Railway CLI (recommended):
+Two one-time commands populate it — run them via the Railway CLI from inside
+the `backend/` folder on your machine:
 
 ```bash
 npm i -g @railway/cli
 railway login
-railway link            # select the duncan-funded project
-railway run --service backend npm run seed
+railway link                       # select the duncan-funded project
+
+cd backend
+npm install                        # local deps — railway run executes locally
+railway run --service backend npm run seed         # 6 sample blog posts
+railway run --service backend npm run setup:admin  # creates the admin login
 ```
 
-`railway run` executes the command with the service's environment variables
-(including `DATABASE_URL`), so the seed connects to the production database.
+`railway run` executes the command on your machine but with the service's
+environment variables injected (including `DATABASE_URL`, `ADMIN_EMAIL`,
+`ADMIN_PASSWORD`), so both commands act on the production database.
+
+After `setup:admin` succeeds, you can sign in to the admin panel at
+`https://<frontend-url>/admin/login` using the `ADMIN_EMAIL` /
+`ADMIN_PASSWORD` you configured.
 
 You can confirm the API is live by visiting:
 
@@ -223,12 +235,9 @@ Test the forms:
 - Submit the **newsletter** form in the footer.
 - Submit the **contact** form on `/contact`.
 
-Confirm they were stored:
-
-```bash
-railway run --service backend bash -c \
-  'curl -s -H "x-api-key: $ADMIN_API_KEY" localhost:$PORT/api/admin/subscribers'
-```
+Confirm they were stored by signing in to the admin panel at
+`https://<frontend-url>/admin/login` and opening the **Subscribers** and
+**Messages** pages.
 
 ---
 

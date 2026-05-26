@@ -32,6 +32,11 @@ export const contactSchema = z.object({
   message: z.string().min(10).max(4000),
 });
 
+export const loginSchema = z.object({
+  email: z.string().email().max(200),
+  password: z.string().min(1).max(200),
+});
+
 /** Parse a request body against a schema, throwing a 400 ApiError on failure. */
 export function validate(schema, data) {
   const result = schema.safeParse(data);
