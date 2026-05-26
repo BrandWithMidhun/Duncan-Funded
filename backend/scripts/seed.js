@@ -1,6 +1,7 @@
-// Seed script — populates the SQLite database with categories, tags,
+// Seed script — populates the Postgres database with categories, tags,
 // an author, sample SEO blog posts, and a couple of demo subscribers.
-import { initDb, persistNow, get, run } from '../src/lib/db.js';
+import 'dotenv/config';
+import { initDb, closeDb, get, run } from '../src/lib/db.js';
 import { genId, toSlug, estimateReadingTime, now } from '../src/lib/helpers.js';
 
 const POSTS = [
@@ -184,37 +185,34 @@ async function main() {
   await initDb();
 
   // Author
-  let author = get('SELECT id FROM users WHERE email = ?', ['editorial@duncanfunded.com']);
+  let author = await get('SELECT id FROM users WHERE email = ?', [
+    'editorial@duncanfunded.com',
+  ]);
   if (!author) {
     const id = genId();
-    run('INSERT INTO users (id, email, name, role, createdAt) VALUES (?,?,?,?,?)', [
-      id,
-      'editorial@duncanfunded.com',
-      'The Duncan Council',
-      'ADMIN',
-      now(),
-    ]);
+    await run(
+      'INSERT INTO users (id, email, name, role, "createdAt") VALUES (?,?,?,?,?)',
+      [id, 'editorial@duncanfunded.com', 'The Duncan Council', 'ADMIN', now()],
+    );
     author = { id };
   }
 
   for (const p of POSTS) {
     const postSlug = toSlug(p.title);
-    if (get('SELECT id FROM posts WHERE slug = ?', [postSlug])) {
+    if (await get('SELECT id FROM posts WHERE slug = ?', [postSlug])) {
       console.log(`  • skip (exists): ${p.title}`);
       continue;
     }
 
     // Category
     const catSlug = toSlug(p.category);
-    let cat = get('SELECT id FROM categories WHERE slug = ?', [catSlug]);
+    let cat = await get('SELECT id FROM categories WHERE slug = ?', [catSlug]);
     if (!cat) {
       const id = genId();
-      run('INSERT INTO categories (id, slug, name, createdAt) VALUES (?,?,?,?)', [
-        id,
-        catSlug,
-        p.category,
-        now(),
-      ]);
+      await run(
+        'INSERT INTO categories (id, slug, name, "createdAt") VALUES (?,?,?,?)',
+        [id, catSlug, p.category, now()],
+      );
       cat = { id };
     }
 
@@ -222,10 +220,10 @@ async function main() {
     const tagIds = [];
     for (const t of p.tags) {
       const tSlug = toSlug(t);
-      let tag = get('SELECT id FROM tags WHERE slug = ?', [tSlug]);
+      let tag = await get('SELECT id FROM tags WHERE slug = ?', [tSlug]);
       if (!tag) {
         const id = genId();
-        run('INSERT INTO tags (id, slug, name, createdAt) VALUES (?,?,?,?)', [
+        await run('INSERT INTO tags (id, slug, name, "createdAt") VALUES (?,?,?,?)', [
           id,
           tSlug,
           t,
@@ -239,11 +237,11 @@ async function main() {
     // Post
     const postId = genId();
     const ts = now();
-    run(
+    await run(
       `INSERT INTO posts
-        (id, slug, title, excerpt, content, coverImage, status, featured,
-         readingTime, views, metaTitle, metaDescription, ogImage, canonicalUrl,
-         publishedAt, createdAt, updatedAt, authorId, categoryId)
+        (id, slug, title, excerpt, content, "coverImage", status, featured,
+         "readingTime", views, "metaTitle", "metaDescription", "ogImage", "canonicalUrl",
+         "publishedAt", "createdAt", "updatedAt", "authorId", "categoryId")
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         postId,
@@ -253,7 +251,7 @@ async function main() {
         p.content,
         null,
         'PUBLISHED',
-        p.featured ? 1 : 0,
+        !!p.featured,
         estimateReadingTime(p.content),
         0,
         null,
@@ -268,27 +266,32 @@ async function main() {
       ],
     );
     for (const tagId of tagIds) {
-      run('INSERT OR IGNORE INTO tags_on_posts (postId, tagId) VALUES (?,?)', [postId, tagId]);
+      await run(
+        'INSERT INTO tags_on_posts ("postId", "tagId") VALUES (?,?) ON CONFLICT DO NOTHING',
+        [postId, tagId],
+      );
     }
     console.log(`  ✓ ${p.title}`);
   }
 
   // Demo subscribers
   for (const email of ['scout@example.com', 'chieftain@example.com']) {
-    if (!get('SELECT id FROM subscribers WHERE email = ?', [email])) {
-      run(
-        `INSERT INTO subscribers (id, email, status, source, confirmedAt, unsubToken, createdAt)
+    if (!(await get('SELECT id FROM subscribers WHERE email = ?', [email]))) {
+      await run(
+        `INSERT INTO subscribers (id, email, status, source, "confirmedAt", "unsubToken", "createdAt")
          VALUES (?,?,'ACTIVE','seed',?,?,?)`,
         [genId(), email, now(), genId(), now()],
       );
     }
   }
 
-  persistNow();
   console.log('✅ Seed complete.');
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+main()
+  .then(() => closeDb())
+  .catch(async (e) => {
+    console.error(e);
+    await closeDb();
+    process.exit(1);
+  });

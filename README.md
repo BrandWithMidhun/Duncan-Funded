@@ -24,13 +24,16 @@ duncan-funded/
 | Dynamic & best-practice | ISR (incremental static regeneration) keeps blog content fresh; security middleware (helmet, CORS, rate limiting) and input validation (Zod) protect the API. |
 | Node.js backend, CMS-ready | The backend is plain Node.js + Express with a clean service/repository layer. A `users` table and API-key auth are already in place as the foundation for Phase 2 (full CMS with an admin UI). |
 
-### A note on the database
+### The database
 
-Phase 1 uses an **embedded SQLite database** via `sql.js` (SQLite compiled to
-WebAssembly). This needs no external service and no native build step, so the
-project runs anywhere Node runs. The data layer is isolated in
-`backend/src/lib/db.js`; for the CMS phase it can be swapped for PostgreSQL by
-replacing that single module — the services and routes do not change.
+The backend uses **PostgreSQL**. Locally you run your own Postgres instance;
+in production (Railway) a managed Postgres database is attached to the service
+and the connection string is injected automatically.
+
+The data-access layer is isolated in `backend/src/lib/db.js` — a thin wrapper
+over the `pg` driver. The schema is created automatically on first start, so
+there is no separate migration step for Phase 1; `npm run seed` then loads the
+sample blog content.
 
 ---
 
@@ -47,11 +50,14 @@ Open two terminals.
 
 ### 1. Backend
 
+Requires a local PostgreSQL database. Create one (e.g. `createdb duncan_funded`),
+then:
+
 ```bash
 cd backend
-cp .env.example .env        # adjust ADMIN_API_KEY for anything public-facing
+cp .env.example .env        # set DATABASE_URL + a strong ADMIN_API_KEY
 npm install
-npm run seed                # creates data/duncan.db with 6 sample blog posts
+npm run seed                # creates the schema + loads 6 sample blog posts
 npm run dev                 # API on http://localhost:4000
 ```
 
@@ -173,17 +179,26 @@ The backend is intentionally structured so the next phase drops in cleanly:
    existing `users` table (`ADMIN` / `EDITOR` roles already modelled).
 2. **Admin UI** — an authenticated dashboard for posts, categories, subscribers,
    and contact messages.
-3. **Rich editing** — a markdown / WYSIWYG editor plus image uploads.
-4. **PostgreSQL** — swap `backend/src/lib/db.js` for a Postgres driver; the
-   service and route layers are unchanged.
+3. **Rich editing** — a markdown / WYSIWYG editor plus image uploads
+   (e.g. to S3 / Cloudflare R2).
+4. **Database migrations** — introduce a migration tool (e.g. `node-pg-migrate`)
+   so schema changes are versioned rather than applied on boot.
 5. **Newsletter delivery** — connect an email provider (e.g. Resend, SES) to send
-   campaigns to subscribers.
+   campaigns to subscribers, with double opt-in confirmation.
+
+PostgreSQL is already in place from Phase 1, so the CMS work builds directly on
+the existing schema and service layer — no data-layer rewrite is needed.
+
+## Deployment
+
+See **`DEPLOY_RAILWAY.md`** for a complete, step-by-step guide to deploying both
+services and a managed PostgreSQL database on Railway.
 
 ---
 
 ## Tech stack
 
-**Backend:** Node.js, Express, sql.js (SQLite/WASM), Zod, Helmet, CORS,
+**Backend:** Node.js, Express, PostgreSQL (pg), Zod, Helmet, CORS,
 express-rate-limit, Morgan.
 
 **Frontend:** Next.js 16 (App Router), React 18, Tailwind CSS, Framer Motion,

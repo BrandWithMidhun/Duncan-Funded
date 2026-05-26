@@ -9,18 +9,18 @@ import {
 } from '../lib/helpers.js';
 
 /** Attach author, category and tags to a raw post row, and shape for the API. */
-function hydrate(row) {
+async function hydrate(row) {
   if (!row) return null;
   const author = row.authorId
-    ? get('SELECT id, name FROM users WHERE id = ?', [row.authorId])
+    ? await get('SELECT id, name FROM users WHERE id = ?', [row.authorId])
     : null;
   const category = row.categoryId
-    ? get('SELECT id, name, slug FROM categories WHERE id = ?', [row.categoryId])
+    ? await get('SELECT id, name, slug FROM categories WHERE id = ?', [row.categoryId])
     : null;
-  const tags = all(
+  const tags = await all(
     `SELECT t.id, t.name, t.slug FROM tags t
-     JOIN tags_on_posts tp ON tp.tagId = t.id
-     WHERE tp.postId = ? ORDER BY t.name`,
+     JOIN tags_on_posts tp ON tp."tagId" = t.id
+     WHERE tp."postId" = ? ORDER BY t.name`,
     [row.id],
   );
   return {
@@ -49,14 +49,14 @@ function hydrate(row) {
   };
 }
 
-/** Resolve (or create) a category by name; returns its id. */
-function resolveCategory(name) {
+/** Resolve (or create) a category by name; returns its id. Uses a scoped db client. */
+async function resolveCategory(client, name) {
   if (!name) return null;
   const slug = toSlug(name);
-  const existing = get('SELECT id FROM categories WHERE slug = ?', [slug]);
+  const existing = await client.get('SELECT id FROM categories WHERE slug = ?', [slug]);
   if (existing) return existing.id;
   const id = genId();
-  run('INSERT INTO categories (id, slug, name, createdAt) VALUES (?, ?, ?, ?)', [
+  await client.run('INSERT INTO categories (id, slug, name, "createdAt") VALUES (?, ?, ?, ?)', [
     id,
     slug,
     name,
@@ -66,14 +66,14 @@ function resolveCategory(name) {
 }
 
 /** Resolve (or create) tags by name; returns array of tag ids. */
-function resolveTags(names = []) {
+async function resolveTags(client, names = []) {
   const ids = [];
   for (const name of names) {
     const slug = toSlug(name);
-    let row = get('SELECT id FROM tags WHERE slug = ?', [slug]);
+    let row = await client.get('SELECT id FROM tags WHERE slug = ?', [slug]);
     if (!row) {
       const id = genId();
-      run('INSERT INTO tags (id, slug, name, createdAt) VALUES (?, ?, ?, ?)', [
+      await client.run('INSERT INTO tags (id, slug, name, "createdAt") VALUES (?, ?, ?, ?)', [
         id,
         slug,
         name,
@@ -87,19 +87,16 @@ function resolveTags(names = []) {
 }
 
 /** Resolve (or create) an author by name; returns its id. */
-function resolveAuthor(name) {
+async function resolveAuthor(client, name) {
   if (!name) return null;
   const email = `${toSlug(name)}@duncanfunded.com`;
-  const existing = get('SELECT id FROM users WHERE email = ?', [email]);
+  const existing = await client.get('SELECT id FROM users WHERE email = ?', [email]);
   if (existing) return existing.id;
   const id = genId();
-  run('INSERT INTO users (id, email, name, role, createdAt) VALUES (?, ?, ?, ?, ?)', [
-    id,
-    email,
-    name,
-    'EDITOR',
-    now(),
-  ]);
+  await client.run(
+    'INSERT INTO users (id, email, name, role, "createdAt") VALUES (?, ?, ?, ?, ?)',
+    [id, email, name, 'EDITOR', now()],
+  );
   return id;
 }
 
@@ -107,7 +104,7 @@ function resolveAuthor(name) {
  * List posts with pagination + filtering.
  * Public callers only see PUBLISHED posts; admins pass includeAll.
  */
-export function listPosts({
+export async function listPosts({
   page = 1,
   limit = 9,
   category,
@@ -122,28 +119,28 @@ export function listPosts({
 
   if (!includeAll) {
     where.push("status = 'PUBLISHED'");
-    where.push('publishedAt <= ?');
+    where.push('"publishedAt" <= ?');
     params.push(now());
   } else if (status) {
     where.push('status = ?');
     params.push(status);
   }
   if (category) {
-    where.push('categoryId = (SELECT id FROM categories WHERE slug = ?)');
+    where.push('"categoryId" = (SELECT id FROM categories WHERE slug = ?)');
     params.push(category);
   }
   if (tag) {
     where.push(
-      'id IN (SELECT tp.postId FROM tags_on_posts tp JOIN tags t ON t.id = tp.tagId WHERE t.slug = ?)',
+      'id IN (SELECT tp."postId" FROM tags_on_posts tp JOIN tags t ON t.id = tp."tagId" WHERE t.slug = ?)',
     );
     params.push(tag);
   }
   if (featured !== undefined) {
     where.push('featured = ?');
-    params.push(featured ? 1 : 0);
+    params.push(!!featured);
   }
   if (search) {
-    where.push('(title LIKE ? OR excerpt LIKE ? OR content LIKE ?)');
+    where.push('(title ILIKE ? OR excerpt ILIKE ? OR content ILIKE ?)');
     const like = `%${search}%`;
     params.push(like, like, like);
   }
@@ -153,16 +150,20 @@ export function listPosts({
   const pageNum = Math.max(Number(page) || 1, 1);
   const offset = (pageNum - 1) * take;
 
-  const total = get(`SELECT COUNT(*) AS n FROM posts ${whereSql}`, params).n;
-  const rows = all(
+  const totalRow = await get(`SELECT COUNT(*) AS n FROM posts ${whereSql}`, params);
+  const total = Number(totalRow.n);
+  const rows = await all(
     `SELECT * FROM posts ${whereSql}
-     ORDER BY COALESCE(publishedAt, createdAt) DESC
+     ORDER BY COALESCE("publishedAt", "createdAt") DESC
      LIMIT ? OFFSET ?`,
     [...params, take, offset],
   );
 
+  const data = [];
+  for (const row of rows) data.push(await hydrate(row));
+
   return {
-    data: rows.map(hydrate),
+    data,
     pagination: {
       total,
       page: pageNum,
@@ -173,50 +174,45 @@ export function listPosts({
 }
 
 /** Get a single post by slug. Optionally increments the view counter. */
-export function getPostBySlug(slug, { includeAll = false, countView = false } = {}) {
-  const row = get('SELECT * FROM posts WHERE slug = ?', [slug]);
+export async function getPostBySlug(slug, { includeAll = false, countView = false } = {}) {
+  const row = await get('SELECT * FROM posts WHERE slug = ?', [slug]);
   if (!row) throw new ApiError(404, 'Post not found');
   if (!includeAll && row.status !== 'PUBLISHED') throw new ApiError(404, 'Post not found');
   if (countView && row.status === 'PUBLISHED') {
-    run('UPDATE posts SET views = views + 1 WHERE id = ?', [row.id]);
+    await run('UPDATE posts SET views = views + 1 WHERE id = ?', [row.id]);
     row.views += 1;
   }
   return hydrate(row);
 }
 
 /** Create a post. */
-export function createPost(input) {
+export async function createPost(input) {
   const id = genId();
-  const slug = uniqueSlug('posts', input.title);
   const ts = now();
   const status = input.status || 'DRAFT';
-  const publishedAt =
-    status === 'PUBLISHED' ? input.publishedAt || ts : null;
+  const publishedAt = status === 'PUBLISHED' ? input.publishedAt || ts : null;
 
-  let categoryId = null;
-  let authorId = null;
-  let tagIds = [];
+  const slug = await tx(async (client) => {
+    const postSlug = await uniqueSlug('posts', input.title, null, client.get);
+    const categoryId = await resolveCategory(client, input.categoryName);
+    const authorId = await resolveAuthor(client, input.authorName);
+    const tagIds = await resolveTags(client, input.tags || []);
 
-  tx(() => {
-    categoryId = resolveCategory(input.categoryName);
-    authorId = resolveAuthor(input.authorName);
-    tagIds = resolveTags(input.tags || []);
-
-    run(
+    await client.run(
       `INSERT INTO posts
-        (id, slug, title, excerpt, content, coverImage, status, featured,
-         readingTime, views, metaTitle, metaDescription, ogImage, canonicalUrl,
-         publishedAt, createdAt, updatedAt, authorId, categoryId)
+        (id, slug, title, excerpt, content, "coverImage", status, featured,
+         "readingTime", views, "metaTitle", "metaDescription", "ogImage", "canonicalUrl",
+         "publishedAt", "createdAt", "updatedAt", "authorId", "categoryId")
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         id,
-        slug,
+        postSlug,
         input.title,
         input.excerpt,
         input.content,
         input.coverImage || null,
         status,
-        input.featured ? 1 : 0,
+        !!input.featured,
         estimateReadingTime(input.content),
         0,
         input.metaTitle || null,
@@ -231,106 +227,112 @@ export function createPost(input) {
       ],
     );
     for (const tagId of tagIds) {
-      run('INSERT OR IGNORE INTO tags_on_posts (postId, tagId) VALUES (?, ?)', [id, tagId]);
+      await client.run(
+        'INSERT INTO tags_on_posts ("postId", "tagId") VALUES (?, ?) ON CONFLICT DO NOTHING',
+        [id, tagId],
+      );
     }
+    return postSlug;
   });
 
   return getPostBySlug(slug, { includeAll: true });
 }
 
 /** Update a post by id. */
-export function updatePost(id, input) {
-  const existing = get('SELECT * FROM posts WHERE id = ?', [id]);
+export async function updatePost(id, input) {
+  const existing = await get('SELECT * FROM posts WHERE id = ?', [id]);
   if (!existing) throw new ApiError(404, 'Post not found');
 
-  const fields = [];
-  const params = [];
-  const set = (col, val) => {
-    fields.push(`${col} = ?`);
-    params.push(val);
-  };
+  await tx(async (client) => {
+    const fields = [];
+    const params = [];
+    const set = (col, val) => {
+      fields.push(`${col} = ?`);
+      params.push(val);
+    };
 
-  if (input.title !== undefined) {
-    set('title', input.title);
-    set('slug', uniqueSlug('posts', input.title, id));
-  }
-  if (input.excerpt !== undefined) set('excerpt', input.excerpt);
-  if (input.content !== undefined) {
-    set('content', input.content);
-    set('readingTime', estimateReadingTime(input.content));
-  }
-  if (input.coverImage !== undefined) set('coverImage', input.coverImage);
-  if (input.featured !== undefined) set('featured', input.featured ? 1 : 0);
-  if (input.metaTitle !== undefined) set('metaTitle', input.metaTitle);
-  if (input.metaDescription !== undefined) set('metaDescription', input.metaDescription);
-  if (input.ogImage !== undefined) set('ogImage', input.ogImage);
-  if (input.canonicalUrl !== undefined) set('canonicalUrl', input.canonicalUrl);
-
-  if (input.status !== undefined) {
-    set('status', input.status);
-    if (input.status === 'PUBLISHED' && !existing.publishedAt) {
-      set('publishedAt', input.publishedAt || now());
+    if (input.title !== undefined) {
+      set('title', input.title);
+      set('slug', await uniqueSlug('posts', input.title, id, client.get));
     }
-  }
-  if (input.publishedAt !== undefined && input.publishedAt) {
-    set('publishedAt', input.publishedAt);
-  }
+    if (input.excerpt !== undefined) set('excerpt', input.excerpt);
+    if (input.content !== undefined) {
+      set('content', input.content);
+      set('"readingTime"', estimateReadingTime(input.content));
+    }
+    if (input.coverImage !== undefined) set('"coverImage"', input.coverImage);
+    if (input.featured !== undefined) set('featured', !!input.featured);
+    if (input.metaTitle !== undefined) set('"metaTitle"', input.metaTitle);
+    if (input.metaDescription !== undefined) set('"metaDescription"', input.metaDescription);
+    if (input.ogImage !== undefined) set('"ogImage"', input.ogImage);
+    if (input.canonicalUrl !== undefined) set('"canonicalUrl"', input.canonicalUrl);
 
-  tx(() => {
+    if (input.status !== undefined) {
+      set('status', input.status);
+      if (input.status === 'PUBLISHED' && !existing.publishedAt) {
+        set('"publishedAt"', input.publishedAt || now());
+      }
+    }
+    if (input.publishedAt !== undefined && input.publishedAt) {
+      set('"publishedAt"', input.publishedAt);
+    }
     if (input.categoryName !== undefined) {
-      set('categoryId', resolveCategory(input.categoryName));
+      set('"categoryId"', await resolveCategory(client, input.categoryName));
     }
     if (input.authorName !== undefined) {
-      set('authorId', resolveAuthor(input.authorName));
+      set('"authorId"', await resolveAuthor(client, input.authorName));
     }
-    set('updatedAt', now());
+    set('"updatedAt"', now());
 
-    run(`UPDATE posts SET ${fields.join(', ')} WHERE id = ?`, [...params, id]);
+    await client.run(`UPDATE posts SET ${fields.join(', ')} WHERE id = ?`, [...params, id]);
 
     if (input.tags !== undefined) {
-      run('DELETE FROM tags_on_posts WHERE postId = ?', [id]);
-      for (const tagId of resolveTags(input.tags)) {
-        run('INSERT OR IGNORE INTO tags_on_posts (postId, tagId) VALUES (?, ?)', [id, tagId]);
+      await client.run('DELETE FROM tags_on_posts WHERE "postId" = ?', [id]);
+      for (const tagId of await resolveTags(client, input.tags)) {
+        await client.run(
+          'INSERT INTO tags_on_posts ("postId", "tagId") VALUES (?, ?) ON CONFLICT DO NOTHING',
+          [id, tagId],
+        );
       }
     }
   });
 
-  const updated = get('SELECT slug FROM posts WHERE id = ?', [id]);
+  const updated = await get('SELECT slug FROM posts WHERE id = ?', [id]);
   return getPostBySlug(updated.slug, { includeAll: true });
 }
 
 /** Delete a post by id. */
-export function deletePost(id) {
-  const existing = get('SELECT id FROM posts WHERE id = ?', [id]);
+export async function deletePost(id) {
+  const existing = await get('SELECT id FROM posts WHERE id = ?', [id]);
   if (!existing) throw new ApiError(404, 'Post not found');
-  tx(() => {
-    run('DELETE FROM tags_on_posts WHERE postId = ?', [id]);
-    run('DELETE FROM posts WHERE id = ?', [id]);
+  await tx(async (client) => {
+    await client.run('DELETE FROM tags_on_posts WHERE "postId" = ?', [id]);
+    await client.run('DELETE FROM posts WHERE id = ?', [id]);
   });
   return { id };
 }
 
 /** All categories with published post counts. */
-export function listCategories() {
+export async function listCategories() {
   return all(
     `SELECT c.id, c.name, c.slug, c.description,
             (SELECT COUNT(*) FROM posts p
-             WHERE p.categoryId = c.id AND p.status = 'PUBLISHED') AS postCount
+             WHERE p."categoryId" = c.id AND p.status = 'PUBLISHED') AS "postCount"
      FROM categories c ORDER BY c.name`,
   );
 }
 
 /** All tags. */
-export function listTags() {
+export async function listTags() {
   return all('SELECT id, name, slug FROM tags ORDER BY name');
 }
 
 /** Slugs + timestamps of every published post — used to build sitemap.xml. */
-export function getPublishedSlugs() {
+export async function getPublishedSlugs() {
   return all(
-    `SELECT slug, updatedAt FROM posts
-     WHERE status = 'PUBLISHED' AND publishedAt <= ?
-     ORDER BY publishedAt DESC`,
+    `SELECT slug, "updatedAt" FROM posts
+     WHERE status = 'PUBLISHED' AND "publishedAt" <= ?
+     ORDER BY "publishedAt" DESC`,
     [now()],
   );
 }

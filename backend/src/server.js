@@ -8,7 +8,7 @@ import rateLimit from 'express-rate-limit';
 
 import apiRoutes from './routes/api.js';
 import { notFound, errorHandler } from './middleware/index.js';
-import { initDb } from './lib/db.js';
+import { initDb, closeDb } from './lib/db.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -56,9 +56,20 @@ app.use(errorHandler);
 // Initialise the database, then start listening.
 initDb()
   .then(() => {
-    app.listen(PORT, () => {
-      console.log(`⚔  Duncan Funded API running on http://localhost:${PORT}`);
+    const server = app.listen(PORT, () => {
+      console.log(`⚔  Duncan Funded API running on port ${PORT}`);
     });
+
+    // Graceful shutdown — close the HTTP server and the Postgres pool.
+    const shutdown = async (signal) => {
+      console.log(`\n${signal} received — shutting down...`);
+      server.close(async () => {
+        await closeDb();
+        process.exit(0);
+      });
+    };
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
   })
   .catch((err) => {
     console.error('Failed to initialise database:', err);

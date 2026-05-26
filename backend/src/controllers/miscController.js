@@ -7,7 +7,7 @@ import { subscriberSchema, contactSchema, validate } from '../lib/validation.js'
 
 export const subscribe = asyncHandler(async (req, res) => {
   const input = validate(subscriberSchema, req.body);
-  const result = newsletterService.subscribe(input);
+  const result = await newsletterService.subscribe(input);
   res.status(result.alreadySubscribed ? 200 : 201).json({
     message: result.alreadySubscribed
       ? "You're already on the Duncan roll."
@@ -19,12 +19,12 @@ export const subscribe = asyncHandler(async (req, res) => {
 export const unsubscribe = asyncHandler(async (req, res) => {
   res.json({
     message: 'You have been unsubscribed.',
-    data: newsletterService.unsubscribe(req.params.token),
+    data: await newsletterService.unsubscribe(req.params.token),
   });
 });
 
 export const listSubscribers = asyncHandler(async (req, res) => {
-  res.json(newsletterService.listSubscribers({ status: req.query.status }));
+  res.json(await newsletterService.listSubscribers({ status: req.query.status }));
 });
 
 // ----- Contact -----
@@ -33,10 +33,10 @@ export const submitContact = asyncHandler(async (req, res) => {
   const input = validate(contactSchema, req.body);
   res.status(201).json({
     message: 'Message received — a member of the Duncan clan will reply shortly.',
-    data: contactService.createMessage(input),
+    data: await contactService.createMessage(input),
   });
 });
 
 export const listMessages = asyncHandler(async (_req, res) => {
-  res.json(contactService.listMessages());
+  res.json(await contactService.listMessages());
 });

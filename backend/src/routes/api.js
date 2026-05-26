@@ -31,9 +31,9 @@ router.post('/contact', misc.submitContact);
 router.get('/admin/messages', requireAdmin, misc.listMessages);
 
 // ---- SEO: sitemap data feed (frontend builds the XML) ----
-router.get('/sitemap-data', (_req, res, next) => {
+router.get('/sitemap-data', async (_req, res, next) => {
   try {
-    res.json({ posts: getPublishedSlugs() });
+    res.json({ posts: await getPublishedSlugs() });
   } catch (e) {
     next(e);
   }

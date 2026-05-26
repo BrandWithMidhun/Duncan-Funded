@@ -1,16 +1,35 @@
-import initSqlJs from 'sql.js';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import pg from 'pg';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.resolve(__dirname, '../../data/duncan.db');
+const { Pool } = pg;
 
-let db = null;
-let SQL = null;
-let saveTimer = null;
+// Postgres connection pool. Railway injects DATABASE_URL automatically when a
+// Postgres plugin is attached to the service.
+const connectionString = process.env.DATABASE_URL;
 
-/** SQLite schema — mirrors the original Prisma model design. */
+if (!connectionString) {
+  console.warn(
+    '[db] DATABASE_URL is not set. Set it in your environment (Railway provides it automatically when a Postgres database is attached).',
+  );
+}
+
+const pool = new Pool({
+  connectionString,
+  // Railway's managed Postgres requires SSL in production.
+  ssl:
+    process.env.PGSSL === 'disable'
+      ? false
+      : process.env.NODE_ENV === 'production'
+        ? { rejectUnauthorized: false }
+        : false,
+  max: 10,
+  idleTimeoutMillis: 30000,
+});
+
+pool.on('error', (err) => {
+  console.error('[db] Unexpected pool error:', err);
+});
+
+/** Schema — Postgres dialect. Created on first run via initDb(). */
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
@@ -18,7 +37,7 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT NOT NULL,
   password TEXT,
   role TEXT NOT NULL DEFAULT 'EDITOR',
-  createdAt TEXT NOT NULL
+  "createdAt" TIMESTAMPTZ NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS categories (
@@ -26,14 +45,14 @@ CREATE TABLE IF NOT EXISTS categories (
   slug TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
   description TEXT,
-  createdAt TEXT NOT NULL
+  "createdAt" TIMESTAMPTZ NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS tags (
   id TEXT PRIMARY KEY,
   slug TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
-  createdAt TEXT NOT NULL
+  "createdAt" TIMESTAMPTZ NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS posts (
@@ -42,28 +61,28 @@ CREATE TABLE IF NOT EXISTS posts (
   title TEXT NOT NULL,
   excerpt TEXT NOT NULL,
   content TEXT NOT NULL,
-  coverImage TEXT,
+  "coverImage" TEXT,
   status TEXT NOT NULL DEFAULT 'DRAFT',
-  featured INTEGER NOT NULL DEFAULT 0,
-  readingTime INTEGER NOT NULL DEFAULT 1,
+  featured BOOLEAN NOT NULL DEFAULT FALSE,
+  "readingTime" INTEGER NOT NULL DEFAULT 1,
   views INTEGER NOT NULL DEFAULT 0,
-  metaTitle TEXT,
-  metaDescription TEXT,
-  ogImage TEXT,
-  canonicalUrl TEXT,
-  publishedAt TEXT,
-  createdAt TEXT NOT NULL,
-  updatedAt TEXT NOT NULL,
-  authorId TEXT REFERENCES users(id),
-  categoryId TEXT REFERENCES categories(id)
+  "metaTitle" TEXT,
+  "metaDescription" TEXT,
+  "ogImage" TEXT,
+  "canonicalUrl" TEXT,
+  "publishedAt" TIMESTAMPTZ,
+  "createdAt" TIMESTAMPTZ NOT NULL,
+  "updatedAt" TIMESTAMPTZ NOT NULL,
+  "authorId" TEXT REFERENCES users(id),
+  "categoryId" TEXT REFERENCES categories(id)
 );
-CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status, publishedAt);
+CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status, "publishedAt");
 CREATE INDEX IF NOT EXISTS idx_posts_featured ON posts(featured);
 
 CREATE TABLE IF NOT EXISTS tags_on_posts (
-  postId TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-  tagId TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-  PRIMARY KEY (postId, tagId)
+  "postId" TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  "tagId" TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+  PRIMARY KEY ("postId", "tagId")
 );
 
 CREATE TABLE IF NOT EXISTS subscribers (
@@ -71,9 +90,9 @@ CREATE TABLE IF NOT EXISTS subscribers (
   email TEXT UNIQUE NOT NULL,
   status TEXT NOT NULL DEFAULT 'ACTIVE',
   source TEXT,
-  confirmedAt TEXT,
-  unsubToken TEXT UNIQUE NOT NULL,
-  createdAt TEXT NOT NULL
+  "confirmedAt" TIMESTAMPTZ,
+  "unsubToken" TEXT UNIQUE NOT NULL,
+  "createdAt" TIMESTAMPTZ NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_subscribers_status ON subscribers(status);
 
@@ -82,79 +101,73 @@ CREATE TABLE IF NOT EXISTS contact_messages (
   name TEXT NOT NULL,
   email TEXT NOT NULL,
   message TEXT NOT NULL,
-  handled INTEGER NOT NULL DEFAULT 0,
-  createdAt TEXT NOT NULL
+  handled BOOLEAN NOT NULL DEFAULT FALSE,
+  "createdAt" TIMESTAMPTZ NOT NULL
 );
 `;
 
-/** Initialise the database — loads the file from disk if it exists. */
+/**
+ * Convert SQLite-style `?` placeholders to Postgres `$1, $2, ...`.
+ * Lets the service layer keep writing portable `?` SQL.
+ */
+function toPgParams(sql) {
+  let i = 0;
+  return sql.replace(/\?/g, () => `$${++i}`);
+}
+
+/** Initialise the database — creates tables if they do not exist. */
 export async function initDb() {
-  if (db) return db;
-  SQL = await initSqlJs();
-  if (fs.existsSync(DB_PATH)) {
-    const buffer = fs.readFileSync(DB_PATH);
-    db = new SQL.Database(buffer);
-  } else {
-    db = new SQL.Database();
-  }
-  db.run('PRAGMA foreign_keys = ON;');
-  db.run(SCHEMA);
-  persist();
-  return db;
+  await pool.query(SCHEMA);
+  return pool;
 }
 
-/** Persist the in-memory database to disk (debounced to coalesce writes). */
-export function persist() {
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    if (!db) return;
-    const data = Buffer.from(db.export());
-    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-    fs.writeFileSync(DB_PATH, data);
-  }, 50);
-}
-
-/** Persist synchronously (used by the seed script before exit). */
-export function persistNow() {
-  if (saveTimer) clearTimeout(saveTimer);
-  if (!db) return;
-  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-  fs.writeFileSync(DB_PATH, Buffer.from(db.export()));
-}
-
-/** Run a query returning all rows as plain objects. */
-export function all(sql, params = []) {
-  const stmt = db.prepare(sql);
-  stmt.bind(params);
-  const rows = [];
-  while (stmt.step()) rows.push(stmt.getAsObject());
-  stmt.free();
-  return rows;
+/** Run a query returning all rows. */
+export async function all(sql, params = []) {
+  const res = await pool.query(toPgParams(sql), params);
+  return res.rows;
 }
 
 /** Run a query returning the first row (or null). */
-export function get(sql, params = []) {
-  const rows = all(sql, params);
-  return rows[0] || null;
+export async function get(sql, params = []) {
+  const res = await pool.query(toPgParams(sql), params);
+  return res.rows[0] || null;
 }
 
-/** Run a write statement and persist. */
-export function run(sql, params = []) {
-  db.run(sql, params);
-  persist();
+/** Run a write statement. */
+export async function run(sql, params = []) {
+  await pool.query(toPgParams(sql), params);
 }
 
-/** Run multiple statements inside a transaction. */
-export function tx(fn) {
-  db.run('BEGIN');
+/**
+ * Run a set of statements inside a transaction.
+ * The callback receives a scoped { all, get, run } bound to one client.
+ */
+export async function tx(fn) {
+  const client = await pool.connect();
   try {
-    fn();
-    db.run('COMMIT');
-    persist();
+    await client.query('BEGIN');
+    const scoped = {
+      all: async (sql, params = []) => (await client.query(toPgParams(sql), params)).rows,
+      get: async (sql, params = []) => {
+        const r = await client.query(toPgParams(sql), params);
+        return r.rows[0] || null;
+      },
+      run: async (sql, params = []) => {
+        await client.query(toPgParams(sql), params);
+      },
+    };
+    const result = await fn(scoped);
+    await client.query('COMMIT');
+    return result;
   } catch (e) {
-    db.run('ROLLBACK');
+    await client.query('ROLLBACK');
     throw e;
+  } finally {
+    client.release();
   }
 }
 
-export { DB_PATH };
+/** Close the pool (graceful shutdown). */
+export async function closeDb() {
+  await pool.end();
+}

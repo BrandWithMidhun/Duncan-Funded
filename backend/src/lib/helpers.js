@@ -35,13 +35,18 @@ export function toSlug(str) {
  * Generate a slug unique within `table` (column `slug`).
  * Appends -1, -2, ... on collision.
  */
-export function uniqueSlug(table, base, excludeId = null) {
+/**
+ * Generate a slug unique within `table` (column `slug`).
+ * Appends -1, -2, ... on collision. Pass a scoped `getter` to run
+ * inside a transaction; defaults to the pooled `get`.
+ */
+export async function uniqueSlug(table, base, excludeId = null, getter = get) {
   const slug = toSlug(base);
   let candidate = slug;
   let n = 1;
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    const row = get(`SELECT id FROM ${table} WHERE slug = ?`, [candidate]);
+    const row = await getter(`SELECT id FROM ${table} WHERE slug = ?`, [candidate]);
     if (!row || row.id === excludeId) return candidate;
     candidate = `${slug}-${n++}`;
   }
