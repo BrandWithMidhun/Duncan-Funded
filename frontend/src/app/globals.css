@@ -1,0 +1,261 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Hybrid Pine #0A1812 */
+    --background: 154 41% 6.7%;
+    /* Hybrid Wool White #E8E4D4 */
+    --foreground: 48 30% 87%;
+
+    /* Hybrid Highland Green #163524 */
+    --card: 147 41% 14.7%;
+    --card-foreground: 48 30% 87%;
+
+    --popover: 154 41% 6.7%;
+    --popover-foreground: 48 30% 87%;
+
+    --primary: 147 41% 14.7%;
+    --primary-foreground: 48 30% 87%;
+
+    /* Hybrid Navy #15283C */
+    --secondary: 211 48% 15.9%;
+    --secondary-foreground: 48 30% 87%;
+
+    --muted: 147 35% 11%;
+    --muted-foreground: 48 22% 70%;
+
+    /* Hybrid Heritage Red #7A2A26 */
+    --accent: 3 52% 31.4%;
+    --accent-foreground: 48 30% 87%;
+
+    --destructive: 3 52% 31.4%;
+    --destructive-foreground: 48 30% 87%;
+
+    --border: 147 35% 16%;
+    --input: 147 35% 13%;
+    /* Hybrid Gold #CFA334 */
+    --ring: 43 62% 51%;
+
+    --radius: 0.375rem;
+
+    --gold: 43 62% 51%;
+    --gold-light: 44 70% 66%;
+    --gold-dark: 44 61% 45%;
+    --wool: 48 30% 87%;
+    --wool-muted: 48 22% 70%;
+    --highland: 147 41% 14.7%;
+    --navy: 211 48% 15.9%;
+    --pine: 154 41% 6.7%;
+    --heritage: 3 52% 31.4%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display;
+  }
+}
+
+@layer utilities {
+  .text-gold {
+    color: hsl(var(--gold));
+  }
+  .text-wool {
+    color: hsl(var(--wool));
+  }
+  .bg-highland {
+    background-color: hsl(var(--highland));
+  }
+  .bg-navy {
+    background-color: hsl(var(--navy));
+  }
+  .bg-pine {
+    background-color: hsl(var(--pine));
+  }
+  .border-gold {
+    border-color: hsl(var(--gold));
+  }
+  .gold-gradient {
+    background: linear-gradient(
+      135deg,
+      hsl(44 61% 45%),
+      hsl(43 62% 51%),
+      hsl(44 70% 66%),
+      hsl(43 62% 51%),
+      hsl(44 61% 45%)
+    );
+  }
+  .gold-text-gradient {
+    background: linear-gradient(135deg, hsl(44 61% 45%), hsl(44 70% 66%), hsl(44 61% 45%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .bg-gradient-primary {
+    background: linear-gradient(135deg, hsl(154 41% 6.7%), hsl(147 41% 14.7%));
+  }
+  .bg-gradient-section {
+    background: linear-gradient(135deg, hsl(147 41% 14.7%), hsl(211 48% 15.9%));
+  }
+  .gold-glow {
+    box-shadow: 0 0 24px -6px hsl(43 62% 51% / 0.45);
+  }
+  .tartan-texture {
+    background-image:
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 20px,
+        hsl(147 41% 14.7% / 0.3) 20px,
+        hsl(147 41% 14.7% / 0.3) 21px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 20px,
+        hsl(147 41% 14.7% / 0.3) 20px,
+        hsl(147 41% 14.7% / 0.3) 21px
+      ),
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 40px,
+        hsl(3 52% 31.4% / 0.15) 40px,
+        hsl(3 52% 31.4% / 0.15) 42px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 40px,
+        hsl(3 52% 31.4% / 0.15) 40px,
+        hsl(3 52% 31.4% / 0.15) 42px
+      ),
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 60px,
+        hsl(43 62% 51% / 0.08) 60px,
+        hsl(43 62% 51% / 0.08) 61px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 60px,
+        hsl(43 62% 51% / 0.08) 60px,
+        hsl(43 62% 51% / 0.08) 61px
+      );
+  }
+  .candle-green {
+    display: inline-block;
+    width: 8px;
+    height: 20px;
+    background: hsl(147 50% 32%);
+    border-radius: 1px;
+    position: relative;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+  .candle-green::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 2px;
+    width: 4px;
+    height: 6px;
+    background: hsl(147 50% 32%);
+  }
+  .candle-green::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 2px;
+    width: 4px;
+    height: 6px;
+    background: hsl(147 50% 32%);
+  }
+  .candle-red {
+    display: inline-block;
+    width: 8px;
+    height: 14px;
+    background: hsl(3 52% 40%);
+    border-radius: 1px;
+    position: relative;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+  .candle-red::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 2px;
+    width: 4px;
+    height: 8px;
+    background: hsl(3 52% 40%);
+  }
+  .candle-red::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 2px;
+    width: 4px;
+    height: 8px;
+    background: hsl(3 52% 40%);
+  }
+  .tartan-button {
+    position: relative;
+    background-image:
+      repeating-linear-gradient(
+        0deg,
+        hsl(154 41% 8%),
+        hsl(154 41% 8%) 6px,
+        hsl(147 41% 14.7% / 0.5) 6px,
+        hsl(147 41% 14.7% / 0.5) 8px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        hsl(154 41% 8%),
+        hsl(154 41% 8%) 6px,
+        hsl(147 41% 14.7% / 0.5) 6px,
+        hsl(147 41% 14.7% / 0.5) 8px
+      ),
+      repeating-linear-gradient(
+        0deg,
+        hsl(154 41% 8%),
+        hsl(154 41% 8%) 12px,
+        hsl(3 52% 31.4% / 0.25) 12px,
+        hsl(3 52% 31.4% / 0.25) 14px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        hsl(154 41% 8%),
+        hsl(154 41% 8%) 12px,
+        hsl(3 52% 31.4% / 0.25) 12px,
+        hsl(3 52% 31.4% / 0.25) 14px
+      );
+    border: 2px solid hsl(43 62% 51%);
+    box-shadow:
+      0 0 15px -3px hsl(43 62% 51% / 0.35),
+      inset 0 1px 0 hsl(43 62% 51% / 0.15);
+  }
+  .tartan-button:hover {
+    box-shadow:
+      0 0 22px -2px hsl(43 62% 51% / 0.55),
+      inset 0 1px 0 hsl(44 70% 66% / 0.25);
+    border-color: hsl(44 70% 66%);
+  }
+}
