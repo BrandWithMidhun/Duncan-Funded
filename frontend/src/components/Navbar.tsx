@@ -28,14 +28,14 @@ export function Navbar() {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-pine/80 backdrop-blur-xl border-b border-gold/10">
-      <div className="container mx-auto flex items-center justify-between h-20 px-6">
+      <div className="container mx-auto flex items-center justify-between h-24 px-6">
         <Link href="/" className="flex items-center">
           {settings.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={settings.logoUrl}
               alt="Duncan Funded"
-              className="h-14 w-auto object-contain"
+              className="h-20 w-auto object-contain"
             />
           ) : (
             <Image
@@ -43,7 +43,7 @@ export function Navbar() {
               alt="Duncan Funded"
               width={160}
               height={56}
-              className="h-14 w-auto object-contain"
+              className="h-20 w-auto object-contain"
               priority
             />
           )}
