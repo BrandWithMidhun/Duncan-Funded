@@ -59,9 +59,9 @@ export default function HeroSection() {
             <Image
               src="/assets/duncan-crest.png"
               alt="Duncan Clan Crest"
-              width={240}
-              height={240}
-              className="w-44 h-44 md:w-60 md:h-60 mb-8 animate-float"
+              width={160}
+              height={160}
+              className="w-28 h-28 md:w-40 md:h-40 mb-6 animate-float"
               priority
             />
           </motion.div>
