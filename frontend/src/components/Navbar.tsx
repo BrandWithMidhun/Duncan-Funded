@@ -29,24 +29,32 @@ export function Navbar() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-pine/80 backdrop-blur-xl border-b border-gold/10">
       <div className="container mx-auto flex items-center justify-between h-24 px-6">
-        <Link href="/" className="flex items-center">
+        <Link href="/" className="flex items-center gap-3">
           {settings.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={settings.logoUrl}
               alt="Duncan Funded"
-              className="h-20 w-auto object-contain"
+              className="h-14 w-14 object-contain"
             />
           ) : (
             <Image
-              src="/assets/duncan-logo.png"
-              alt="Duncan Funded"
-              width={160}
-              height={56}
-              className="h-20 w-auto object-contain"
+              src="/assets/duncan-crest.png"
+              alt="Duncan Funded Crest"
+              width={64}
+              height={64}
+              className="h-14 w-14 object-contain"
               priority
             />
           )}
+          <div className="flex flex-col">
+            <span className="font-display text-xl tracking-[0.2em] gold-text-gradient font-bold leading-tight">
+              DUNCAN
+            </span>
+            <span className="font-display text-[11px] tracking-[0.35em] text-wool-muted uppercase">
+              Funded
+            </span>
+          </div>
         </Link>
 
         <div className="hidden lg:flex items-center gap-7">

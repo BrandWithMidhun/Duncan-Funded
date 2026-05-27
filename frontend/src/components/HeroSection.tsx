@@ -66,14 +66,6 @@ export default function HeroSection() {
             />
           </motion.div>
 
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-px bg-gold/40" />
-            <span className="font-accent text-sm tracking-[0.3em] text-gold/70 italic">
-              Est. MMXXIV
-            </span>
-            <div className="w-16 h-px bg-gold/40" />
-          </div>
-
           <h1 className="font-display text-4xl md:text-6xl lg:text-7xl tracking-[0.08em] mb-4">
             <span className="gold-text-gradient">DUNCAN</span>
             <br />
