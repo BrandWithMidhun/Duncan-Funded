@@ -48,10 +48,10 @@ export function Navbar() {
             />
           )}
           <div className="flex flex-col">
-            <span className="font-display text-xl tracking-[0.2em] gold-text-gradient font-bold leading-tight">
+            <span className="font-brand text-xl tracking-[0.2em] gold-text-gradient font-bold leading-tight">
               DUNCAN
             </span>
-            <span className="font-display text-[11px] tracking-[0.35em] text-wool-muted uppercase">
+            <span className="font-brand text-[11px] tracking-[0.35em] text-wool-muted uppercase">
               Funded
             </span>
           </div>

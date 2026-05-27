@@ -54,6 +54,7 @@ const config: Config = {
         display: ['Cinzel', 'serif'],
         body: ['Raleway', 'sans-serif'],
         accent: ['Cormorant Garamond', 'serif'],
+        brand: ['Montserrat', 'sans-serif'],
       },
       borderRadius: {
         lg: 'var(--radius)',
