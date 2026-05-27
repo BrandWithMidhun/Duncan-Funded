@@ -1,9 +1,11 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import TradingBackground from './TradingBackground';
+import { getSettings, DEFAULT_SETTINGS } from '@/lib/api';
 
 const stats = [
   { value: '$2M+', label: 'Capital Deployed' },
@@ -13,6 +15,18 @@ const stats = [
 ];
 
 export default function HeroSection() {
+  const [beginUrl, setBeginUrl] = useState(DEFAULT_SETTINGS.urls.beginChallenge);
+
+  useEffect(() => {
+    let active = true;
+    getSettings().then((s) => {
+      if (active) setBeginUrl(s.urls.beginChallenge);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-8">
       <div className="absolute inset-0">
@@ -71,14 +85,14 @@ export default function HeroSection() {
           </p>
 
           <p className="font-body text-sm text-muted-foreground max-w-lg mx-auto mb-10 tracking-wide leading-relaxed">
-            A premium prop trading firm powered by FPFX technology. Prove your skill, earn your
-            funding, and join the ranks of elite traders under the Duncan standard.
+            A premium proprietary trading firm built on discipline, transparency, and trader
+            excellence. Prove your skill, earn your funding, and rise under the Duncan standard.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-4">
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
               <a
-                href="https://duncanfundeddashboard.propaccount.com/en/sign-up"
+                href={beginUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block px-10 py-4 gold-gradient text-background font-display text-sm tracking-[0.2em] uppercase rounded-sm shadow-lg shadow-gold/20 hover:shadow-gold/40 transition-shadow"

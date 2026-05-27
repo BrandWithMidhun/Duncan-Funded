@@ -83,7 +83,7 @@ const reasons = [
   {
     title: 'FPFX Powered Infrastructure',
     description:
-      'Enterprise-grade execution, real liquidity, and institutional spreads through our FPFX integration.',
+      'Institutional liquidity, stable execution, and transparent pricing built into every account.',
   },
   {
     title: 'Up to 90% Profit Split',

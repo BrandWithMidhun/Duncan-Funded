@@ -3,6 +3,7 @@ import { requireAuth } from '../middleware/index.js';
 import * as posts from '../controllers/postController.js';
 import * as misc from '../controllers/miscController.js';
 import * as auth from '../controllers/authController.js';
+import * as settings from '../controllers/settingsController.js';
 import { getPublishedSlugs } from '../services/postService.js';
 
 const router = Router();
@@ -13,6 +14,10 @@ router.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date().t
 // ---- Auth ----
 router.post('/auth/login', auth.login);
 router.get('/auth/me', requireAuth, auth.me);
+
+// ---- Site settings ----
+router.get('/settings', settings.getSettings);
+router.put('/admin/settings', requireAuth, settings.updateSettings);
 
 // ---- Blog (public, read-only) ----
 router.get('/posts', posts.getPosts);

@@ -10,6 +10,7 @@ const adminNav = [
   { label: 'Posts', href: '/admin/posts' },
   { label: 'Subscribers', href: '/admin/subscribers' },
   { label: 'Messages', href: '/admin/messages' },
+  { label: 'Settings', href: '/admin/settings' },
 ];
 
 /**

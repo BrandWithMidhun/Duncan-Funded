@@ -104,6 +104,12 @@ CREATE TABLE IF NOT EXISTS contact_messages (
   handled BOOLEAN NOT NULL DEFAULT FALSE,
   "createdAt" TIMESTAMPTZ NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  "updatedAt" TIMESTAMPTZ NOT NULL
+);
 `;
 
 /**

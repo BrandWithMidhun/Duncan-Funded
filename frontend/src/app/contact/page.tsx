@@ -41,16 +41,18 @@ export default function ContactPage() {
                 Headquarters
               </h2>
               <p className="font-body text-wool-muted">
-                The Highland Exchange
+                1200 North Federal Highway,
                 <br />
-                Edinburgh, Scotland
+                Suite 300 Boca Raton,
+                <br />
+                FL 33432
               </p>
             </div>
             <div>
               <h2 className="font-display text-xl gold-text-gradient font-bold tracking-wider mb-2 uppercase">
                 Hours
               </h2>
-              <p className="font-body text-wool-muted">24/5 — markets never sleep</p>
+              <p className="font-body text-wool-muted">24/7 Elite Support</p>
             </div>
           </div>
 

@@ -16,6 +16,7 @@ export default function PostForm({ initial, onSubmit, submitLabel }: Props) {
   const [title, setTitle] = useState(initial?.title || '');
   const [excerpt, setExcerpt] = useState(initial?.excerpt || '');
   const [content, setContent] = useState(initial?.content || '');
+  const [coverImage, setCoverImage] = useState(initial?.coverImage || '');
   const [category, setCategory] = useState(initial?.category?.name || '');
   const [tags, setTags] = useState((initial?.tags || []).map((t) => t.name).join(', '));
   const [status, setStatus] = useState(initial?.status || 'DRAFT');
@@ -38,6 +39,7 @@ export default function PostForm({ initial, onSubmit, submitLabel }: Props) {
       title: title.trim(),
       excerpt: excerpt.trim(),
       content: content.trim(),
+      coverImage: coverImage.trim() || null,
       status,
       featured,
       categoryName: category.trim() || undefined,
@@ -92,6 +94,35 @@ export default function PostForm({ initial, onSubmit, submitLabel }: Props) {
           className={`${inputClass} resize-none`}
           placeholder="A short summary of the article"
         />
+      </div>
+
+      <div>
+        <label htmlFor="coverImage" className={labelClass}>
+          Feature Image URL{' '}
+          <span className="text-wool-muted/50">(shown on the post &amp; in listings)</span>
+        </label>
+        <input
+          id="coverImage"
+          type="url"
+          value={coverImage}
+          onChange={(e) => setCoverImage(e.target.value)}
+          className={inputClass}
+          placeholder="https://example.com/image.jpg"
+        />
+        <p className="font-body text-xs text-wool-muted/60 mt-2">
+          Recommended: 1600 × 900px (16:9), JPG or WebP, under 500&nbsp;KB for fast loading.
+        </p>
+        {coverImage.trim() && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={coverImage.trim()}
+            alt="Feature image preview"
+            className="mt-3 rounded-sm border border-gold/20 max-h-48 object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        )}
       </div>
 
       <div>

@@ -1,38 +1,52 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-
-// External dashboard URLs
-const SIGN_IN_URL = 'https://duncanfundeddashboard.propaccount.com/en/sign-in';
-
-const navLinks = [
-  { label: 'Home', href: '/' },
-  { label: 'Programs', href: '/programs' },
-  { label: 'Trade Zone', href: '/trade-zone' },
-  { label: 'Blog', href: '/blog' },
-  { label: 'About', href: '/about' },
-  { label: 'FAQ', href: '/faq' },
-  { label: 'Contact', href: '/contact' },
-];
+import { getSettings, DEFAULT_SETTINGS, type SiteSettings } from '@/lib/api';
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
+
+  useEffect(() => {
+    let active = true;
+    getSettings().then((s) => {
+      if (active) setSettings(s);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const navLinks = settings.menu;
+  const signInUrl = settings.urls.signIn;
+  const getFundedUrl = settings.urls.getFunded;
+  // Internal links (start with "/") use next/link; external use a plain anchor.
+  const isExternal = (href: string) => /^https?:\/\//i.test(href);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-pine/80 backdrop-blur-xl border-b border-gold/10">
       <div className="container mx-auto flex items-center justify-between h-20 px-6">
         <Link href="/" className="flex items-center gap-3">
-          <Image
-            src="/assets/duncan-crest.png"
-            alt="Duncan Funded Crest"
-            width={48}
-            height={48}
-            className="h-12 w-12 object-contain"
-            priority
-          />
+          {settings.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={settings.logoUrl}
+              alt="Duncan Funded"
+              className="h-12 w-12 object-contain"
+            />
+          ) : (
+            <Image
+              src="/assets/duncan-crest.png"
+              alt="Duncan Funded Crest"
+              width={48}
+              height={48}
+              className="h-12 w-12 object-contain"
+              priority
+            />
+          )}
           <div className="flex flex-col">
             <span className="font-display text-lg tracking-[0.2em] gold-text-gradient font-bold leading-tight">
               DUNCAN
@@ -44,32 +58,53 @@ export function Navbar() {
         </Link>
 
         <div className="hidden lg:flex items-center gap-7">
-          {navLinks.map((link) => (
-            <Link
-              key={link.label}
-              href={link.href}
-              className="font-body text-sm tracking-wider text-wool-muted hover:text-gold transition-colors duration-300 uppercase"
-            >
-              {link.label}
-            </Link>
-          ))}
+          {navLinks.map((link) =>
+            isExternal(link.href) ? (
+              <a
+                key={link.label}
+                href={link.href}
+                className="font-body text-sm tracking-wider text-wool-muted hover:text-gold transition-colors duration-300 uppercase"
+              >
+                {link.label}
+              </a>
+            ) : (
+              <Link
+                key={link.label}
+                href={link.href}
+                className="font-body text-sm tracking-wider text-wool-muted hover:text-gold transition-colors duration-300 uppercase"
+              >
+                {link.label}
+              </Link>
+            ),
+          )}
         </div>
 
         <div className="hidden lg:flex items-center gap-3">
           <a
-            href={SIGN_IN_URL}
+            href={signInUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-body text-sm tracking-wider text-gold border border-gold/40 px-6 py-2.5 rounded-sm hover:bg-gold/5 hover:border-gold transition-all duration-300 uppercase"
+            className="font-body text-sm tracking-wider text-gold tartan-button px-6 py-2.5 rounded-sm hover:text-gold-light transition-all duration-300 uppercase"
           >
             Sign In
           </a>
-          <Link
-            href="/programs"
-            className="font-body text-sm tracking-wider text-gold tartan-button px-6 py-2.5 rounded-sm hover:text-gold-light transition-all duration-300 uppercase"
-          >
-            Get Funded
-          </Link>
+          {isExternal(getFundedUrl) ? (
+            <a
+              href={getFundedUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-body text-sm tracking-wider text-gold tartan-button px-6 py-2.5 rounded-sm hover:text-gold-light transition-all duration-300 uppercase"
+            >
+              Get Funded
+            </a>
+          ) : (
+            <Link
+              href={getFundedUrl}
+              className="font-body text-sm tracking-wider text-gold tartan-button px-6 py-2.5 rounded-sm hover:text-gold-light transition-all duration-300 uppercase"
+            >
+              Get Funded
+            </Link>
+          )}
         </div>
 
         <button
@@ -96,32 +131,55 @@ export function Navbar() {
             className="lg:hidden bg-pine/95 backdrop-blur-xl border-b border-gold/10 overflow-hidden"
           >
             <div className="flex flex-col px-6 py-6 gap-4">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  className="font-body text-sm tracking-wider text-wool-muted hover:text-gold transition-colors uppercase"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {navLinks.map((link) =>
+                isExternal(link.href) ? (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    className="font-body text-sm tracking-wider text-wool-muted hover:text-gold transition-colors uppercase"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {link.label}
+                  </a>
+                ) : (
+                  <Link
+                    key={link.label}
+                    href={link.href}
+                    className="font-body text-sm tracking-wider text-wool-muted hover:text-gold transition-colors uppercase"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {link.label}
+                  </Link>
+                ),
+              )}
               <a
-                href={SIGN_IN_URL}
+                href={signInUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setMobileOpen(false)}
-                className="font-body text-sm tracking-wider text-gold border border-gold/40 px-6 py-2.5 rounded-sm text-center hover:bg-gold/5 transition-all uppercase mt-2"
+                className="font-body text-sm tracking-wider text-gold tartan-button px-6 py-2.5 rounded-sm text-center hover:text-gold-light transition-all uppercase mt-2"
               >
                 Sign In
               </a>
-              <Link
-                href="/programs"
-                onClick={() => setMobileOpen(false)}
-                className="font-body text-sm tracking-wider text-gold tartan-button px-6 py-2.5 rounded-sm text-center hover:text-gold-light transition-all uppercase"
-              >
-                Get Funded
-              </Link>
+              {isExternal(getFundedUrl) ? (
+                <a
+                  href={getFundedUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMobileOpen(false)}
+                  className="font-body text-sm tracking-wider text-gold tartan-button px-6 py-2.5 rounded-sm text-center hover:text-gold-light transition-all uppercase"
+                >
+                  Get Funded
+                </a>
+              ) : (
+                <Link
+                  href={getFundedUrl}
+                  onClick={() => setMobileOpen(false)}
+                  className="font-body text-sm tracking-wider text-gold tartan-button px-6 py-2.5 rounded-sm text-center hover:text-gold-light transition-all uppercase"
+                >
+                  Get Funded
+                </Link>
+              )}
             </div>
           </motion.div>
         )}

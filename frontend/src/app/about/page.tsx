@@ -54,20 +54,22 @@ export default function AboutPage() {
       <section className="py-20 container mx-auto px-6">
         <div className="max-w-4xl mx-auto space-y-8 text-wool-muted font-body text-lg leading-relaxed">
           <p>
-            Duncan Funded was forged from a single conviction: that the next generation of elite
-            traders deserves capital backing without the gatekeeping of legacy institutions. Born
-            in the highlands of modern finance, our firm bridges centuries of Scottish discipline
-            with the velocity of today&apos;s global markets.
+            Duncan Funded was built on discipline and legacy. Founded by Tommy Duncan, a U.S.
+            Army Colonel (Ret.), aerospace graduate, and lifelong trader, the firm reflects a
+            career defined by leadership, precision, and risk management. After decades
+            commanding teams, building businesses, and trading markets, Duncan applied the same
+            structured mindset to create a proprietary trading firm where discipline is the only
+            edge that matters.
           </p>
           <p>
-            We partner with FPFX Technologies — the industry-standard infrastructure trusted by
-            the world&apos;s leading prop firms — to deliver an evaluation experience that is
-            fast, fair, and uncompromisingly transparent.
+            Born from Scottish heritage and military rigor, Duncan Funded combines the principles
+            of honor, structure, and accountability with the speed and transparency of modern
+            trading technology. The firm exists to identify traders who operate with conviction,
+            consistency, and respect for risk — not speculation.
           </p>
           <p>
-            Whether you&apos;re a Highland Scout taking your first measured steps or a seasoned
-            Chieftain commanding six-figure capital, the Duncan crest stands behind your every
-            trade.
+            Whether you are taking your first disciplined steps or managing six-figure simulated
+            capital, the Duncan standard stands behind every trade.
           </p>
         </div>
 

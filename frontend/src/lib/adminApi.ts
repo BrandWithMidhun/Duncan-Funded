@@ -96,6 +96,7 @@ export interface AdminPost {
   title: string;
   excerpt: string;
   content: string;
+  coverImage: string | null;
   status: string;
   featured: boolean;
   readingTime: number;
@@ -112,6 +113,7 @@ export interface PostInput {
   title: string;
   excerpt: string;
   content: string;
+  coverImage?: string | null;
   status?: string;
   featured?: boolean;
   categoryName?: string;
@@ -176,4 +178,35 @@ export async function listSubscribers(): Promise<ApiResult<{ total: number; data
 
 export async function listMessages(): Promise<ApiResult<{ total: number; data: ContactMessage[] }>> {
   return authFetch<{ total: number; data: ContactMessage[] }>('/api/admin/messages');
+}
+
+// ---- Admin: site settings ----
+
+export interface MenuItem {
+  label: string;
+  href: string;
+}
+
+export interface SiteSettings {
+  urls: {
+    getFunded: string;
+    beginChallenge: string;
+    signIn: string;
+  };
+  logoUrl: string | null;
+  menu: MenuItem[];
+}
+
+export async function getSettings(): Promise<ApiResult<{ data: SiteSettings }>> {
+  // The settings GET is public, but we reuse authFetch for a consistent shape.
+  return authFetch<{ data: SiteSettings }>('/api/settings');
+}
+
+export async function updateSettings(
+  input: SiteSettings,
+): Promise<ApiResult<{ data: SiteSettings }>> {
+  return authFetch<{ data: SiteSettings }>('/api/admin/settings', {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
 }

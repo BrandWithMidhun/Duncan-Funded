@@ -7,26 +7,26 @@ export interface FaqItem {
 export const faqData: FaqItem[] = [
   {
     q: 'What is Duncan Funded?',
-    a: 'Duncan Funded is a proprietary trading firm that provides talented traders with funded accounts. We partner with FPFX to offer institutional-grade infrastructure, real liquidity, and competitive trading conditions.',
+    a: 'Duncan Funded is a proprietary trading firm that provides talented traders with the opportunity to earn funded accounts. Our platform is built on institutional-grade trading technology, delivering real liquidity, reliable execution, and competitive trading conditions.',
   },
   {
     q: 'How does the evaluation work?',
-    a: 'Our evaluation consists of one or two phases depending on your chosen program. You must hit the profit target while staying within daily and total drawdown limits. There are no time limits — trade at your pace.',
+    a: 'Evaluations use simulated 1-Step and 2-Step accounts. Passing requires hitting the profit target while staying within all defined daily and overall drawdown limits.',
   },
   {
     q: 'What instruments can I trade?',
-    a: 'You can trade Forex pairs, indices, commodities, and metals. All instruments are available through our FPFX-powered platform with tight spreads and fast execution.',
+    a: 'Trade Forex, Equities, Crypto, and Futures in a simulated environment with institutional-grade pricing and fast execution.',
   },
   {
     q: 'How do payouts work?',
-    a: 'Once funded, you can request payouts every two weeks. We offer up to 90% profit split, with higher splits available through our scaling plan for consistent performers.',
+    a: 'Funded traders may request payouts every 14 days. Profit splits scale up to 90% based on consistent performance.',
   },
   {
     q: 'Is there a scaling plan?',
-    a: 'Yes. Consistent traders can scale their accounts up to $2M in funded capital with improved profit splits. Scaling is based on consecutive profitable periods.',
+    a: 'Consistent traders may qualify for account scaling based on performance and risk compliance. Scaling increases account size over time and follows the rules defined for each program.',
   },
   {
     q: 'What platforms are supported?',
-    a: 'We support MetaTrader 4, MetaTrader 5, and cTrader through our FPFX integration. Choose the platform that suits your trading style.',
+    a: 'Our trading infrastructure supports MT4/5, TradeLocker, MatchTrader, DXtrade, cTrader, GooeyPro, DXT, and Rithmic. Choose the platform that fits your trading style.',
   },
 ];

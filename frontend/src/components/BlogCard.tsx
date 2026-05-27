@@ -16,6 +16,16 @@ export default function BlogCard({ post }: { post: Post }) {
       href={`/blog/${post.slug}`}
       className="group flex flex-col border border-gold/15 bg-highland/40 rounded-sm overflow-hidden hover:border-gold/40 transition-all duration-300"
     >
+      {post.coverImage && (
+        <div className="aspect-[16/9] overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={post.coverImage}
+            alt={post.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        </div>
+      )}
       <div className="p-6 flex flex-col flex-1">
         <div className="flex items-center gap-3 mb-3">
           {post.category && (

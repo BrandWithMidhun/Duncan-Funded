@@ -61,11 +61,9 @@ function NewsletterForm() {
 
 const footerLinks = [
   { label: 'Programs', href: '/programs' },
-  { label: 'Trade Zone', href: '/trade-zone' },
-  { label: 'Blog', href: '/blog' },
+  { label: 'How It Works', href: '/#how-it-works' },
   { label: 'FAQ', href: '/faq' },
-  { label: 'About', href: '/about' },
-  { label: 'Contact', href: '/contact' },
+  { label: 'Terms & Conditions', href: '/terms' },
 ];
 
 export default function Footer() {
@@ -108,11 +106,16 @@ export default function Footer() {
 
         <div className="flex flex-col items-center text-center border-t border-gold/10 pt-8">
           <p className="font-body text-xs text-wool-muted/60 tracking-wide">
-            © {new Date().getFullYear()} Duncan Funded. Powered by FPFX. All rights reserved.
+            © 2026 Duncan Funded. Built on institutional-grade trading technology. All rights
+            reserved.
           </p>
-          <p className="font-body text-[10px] text-wool-muted/40 mt-2 max-w-md tracking-wide">
-            Trading involves significant risk. Past performance is not indicative of future
-            results.
+          <p className="font-body text-[10px] text-wool-muted/40 mt-3 max-w-2xl tracking-wide leading-relaxed">
+            Disclaimer: Duncan Funded is an affiliate of Prop Account, LLC. All live assessments
+            are provided by Prop Account, LC and all assessment fees are paid to Prop Account,
+            LLC. If you qualify for a Live Account, you will be required to enter into a Trader
+            Agreement with Prop Account LC. Neither Prop Account, LLC nor Prop Account LC provides
+            any trading education or other services. All such services are provided by Duncan
+            Funded.
           </p>
         </div>
       </div>

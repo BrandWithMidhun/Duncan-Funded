@@ -156,3 +156,53 @@ export async function submitContact(payload: {
 }
 
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+// ---- Site settings ----
+
+export interface MenuItem {
+  label: string;
+  href: string;
+}
+
+export interface SiteSettings {
+  urls: {
+    getFunded: string;
+    beginChallenge: string;
+    signIn: string;
+  };
+  logoUrl: string | null;
+  menu: MenuItem[];
+}
+
+// Defaults — used when the backend is unreachable so the site still renders.
+export const DEFAULT_SETTINGS: SiteSettings = {
+  urls: {
+    getFunded: '/programs',
+    beginChallenge: 'https://duncanfundeddashboard.propaccount.com/en/sign-up',
+    signIn: 'https://duncanfundeddashboard.propaccount.com/en/sign-in',
+  },
+  logoUrl: null,
+  menu: [
+    { label: 'Home', href: '/' },
+    { label: 'Programs', href: '/programs' },
+    { label: 'Trade Zone', href: '/trade-zone' },
+    { label: 'Blog', href: '/blog' },
+    { label: 'About', href: '/about' },
+    { label: 'FAQ', href: '/faq' },
+    { label: 'Contact', href: '/contact' },
+  ],
+};
+
+/** Fetch site settings (URLs, logo, menu). Falls back to defaults on error. */
+export async function getSettings(): Promise<SiteSettings> {
+  try {
+    const res = await fetch(`${API_URL}/api/settings`, {
+      next: { revalidate: 30 },
+    });
+    if (!res.ok) return DEFAULT_SETTINGS;
+    const json = await res.json();
+    return json.data as SiteSettings;
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}

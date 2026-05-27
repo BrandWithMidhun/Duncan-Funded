@@ -146,6 +146,18 @@ export default async function BlogPostPage({ params }: Props) {
         </div>
       </header>
 
+      {/* Feature image */}
+      {post.coverImage && (
+        <div className="container mx-auto px-6 max-w-4xl -mt-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={post.coverImage}
+            alt={post.title}
+            className="w-full rounded-sm border border-gold/15 object-cover max-h-[480px]"
+          />
+        </div>
+      )}
+
       {/* Article body */}
       <article className="container mx-auto px-6 max-w-3xl py-12">
         <div className="prose prose-invert max-w-none font-body prose-headings:font-display prose-headings:tracking-wide prose-h2:text-2xl prose-h2:mt-12 prose-h2:mb-4 prose-p:leading-relaxed prose-li:marker:text-gold prose-strong:text-wool">
