@@ -76,7 +76,7 @@ export function Navbar() {
             href={signInUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-body text-sm tracking-wider text-gold tartan-button px-6 py-2.5 rounded-sm hover:text-gold-light transition-all duration-300 uppercase"
+            className="font-body text-sm tracking-wider text-gold border border-gold/60 px-6 py-2.5 rounded-sm hover:bg-gold/5 hover:border-gold transition-all duration-300 uppercase"
           >
             Sign In
           </a>
@@ -85,14 +85,14 @@ export function Navbar() {
               href={getFundedUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-body text-sm tracking-wider text-gold tartan-button px-6 py-2.5 rounded-sm hover:text-gold-light transition-all duration-300 uppercase"
+              className="font-body text-sm tracking-wider text-gold border border-gold/60 px-6 py-2.5 rounded-sm hover:bg-gold/5 hover:border-gold transition-all duration-300 uppercase"
             >
               Get Funded
             </a>
           ) : (
             <Link
               href={getFundedUrl}
-              className="font-body text-sm tracking-wider text-gold tartan-button px-6 py-2.5 rounded-sm hover:text-gold-light transition-all duration-300 uppercase"
+              className="font-body text-sm tracking-wider text-gold border border-gold/60 px-6 py-2.5 rounded-sm hover:bg-gold/5 hover:border-gold transition-all duration-300 uppercase"
             >
               Get Funded
             </Link>
@@ -149,7 +149,7 @@ export function Navbar() {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setMobileOpen(false)}
-                className="font-body text-sm tracking-wider text-gold tartan-button px-6 py-2.5 rounded-sm text-center hover:text-gold-light transition-all uppercase mt-2"
+                className="font-body text-sm tracking-wider text-gold border border-gold/60 px-6 py-2.5 rounded-sm text-center hover:bg-gold/5 hover:border-gold transition-all uppercase mt-2"
               >
                 Sign In
               </a>
@@ -159,7 +159,7 @@ export function Navbar() {
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setMobileOpen(false)}
-                  className="font-body text-sm tracking-wider text-gold tartan-button px-6 py-2.5 rounded-sm text-center hover:text-gold-light transition-all uppercase"
+                  className="font-body text-sm tracking-wider text-gold border border-gold/60 px-6 py-2.5 rounded-sm text-center hover:bg-gold/5 hover:border-gold transition-all uppercase"
                 >
                   Get Funded
                 </a>
@@ -167,7 +167,7 @@ export function Navbar() {
                 <Link
                   href={getFundedUrl}
                   onClick={() => setMobileOpen(false)}
-                  className="font-body text-sm tracking-wider text-gold tartan-button px-6 py-2.5 rounded-sm text-center hover:text-gold-light transition-all uppercase"
+                  className="font-body text-sm tracking-wider text-gold border border-gold/60 px-6 py-2.5 rounded-sm text-center hover:bg-gold/5 hover:border-gold transition-all uppercase"
                 >
                   Get Funded
                 </Link>
