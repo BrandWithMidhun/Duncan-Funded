@@ -66,10 +66,10 @@ export default function HeroSection() {
             />
           </motion.div>
 
-          <h1 className="font-display text-4xl md:text-6xl lg:text-7xl tracking-[0.08em] mb-4">
-            <span className="gold-text-gradient">DUNCAN</span>
+          <h1 className="font-brand font-bold text-4xl md:text-6xl lg:text-7xl tracking-[0.08em] mb-4">
+            <span className="text-foreground">DUNCAN</span>
             <br />
-            <span className="text-foreground font-light">FUNDED</span>
+            <span className="gold-text-gradient font-light">FUNDED</span>
           </h1>
 
           <p className="font-accent text-xl md:text-2xl text-wool-muted italic max-w-xl mx-auto mb-4">
