@@ -8,6 +8,8 @@ import { fetchMe, logout, getToken, type AdminUser } from '@/lib/adminApi';
 const adminNav = [
   { label: 'Dashboard', href: '/admin' },
   { label: 'Posts', href: '/admin/posts' },
+  { label: 'FAQ', href: '/admin/faq' },
+  { label: 'SEO', href: '/admin/seo' },
   { label: 'Subscribers', href: '/admin/subscribers' },
   { label: 'Messages', href: '/admin/messages' },
   { label: 'Settings', href: '/admin/settings' },

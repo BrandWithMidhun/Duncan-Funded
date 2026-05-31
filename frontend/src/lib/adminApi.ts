@@ -210,3 +210,97 @@ export async function updateSettings(
     body: JSON.stringify(input),
   });
 }
+
+// ---- Admin: per-page SEO ----
+
+export interface SeoPage {
+  slug: string;
+  title: string;
+  description: string;
+  ogImage: string;
+}
+
+export async function listSeoPages(): Promise<ApiResult<{ data: SeoPage[] }>> {
+  return authFetch<{ data: SeoPage[] }>('/api/admin/seo');
+}
+
+export async function updateSeoPage(
+  slug: string,
+  input: { title: string; description: string; ogImage: string },
+): Promise<ApiResult<{ data: SeoPage }>> {
+  return authFetch<{ data: SeoPage }>(`/api/admin/seo/${slug}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
+// ---- Admin: FAQ ----
+
+export interface FaqAdminItem {
+  id: string;
+  q: string;
+  a: string;
+  order: number;
+}
+
+export interface FaqAdminCategory {
+  id: string;
+  slug: string;
+  label: string;
+  order: number;
+  faqs: FaqAdminItem[];
+}
+
+export async function listAdminFaq(): Promise<ApiResult<{ data: FaqAdminCategory[] }>> {
+  return authFetch<{ data: FaqAdminCategory[] }>('/api/admin/faq');
+}
+
+export async function createFaqCategory(input: {
+  label: string;
+  order?: number;
+}): Promise<ApiResult<{ data: { id: string; label: string; order: number } }>> {
+  return authFetch('/api/admin/faq/categories', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateFaqCategory(
+  id: string,
+  input: { label?: string; order?: number },
+): Promise<ApiResult<{ data: { id: string; label: string; order: number } }>> {
+  return authFetch(`/api/admin/faq/categories/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteFaqCategory(id: string): Promise<ApiResult<{ message: string }>> {
+  return authFetch(`/api/admin/faq/categories/${id}`, { method: 'DELETE' });
+}
+
+export async function createFaqItem(input: {
+  categoryId: string;
+  question: string;
+  answer: string;
+  order?: number;
+}): Promise<ApiResult<{ data: { id: string } }>> {
+  return authFetch('/api/admin/faq/items', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateFaqItem(
+  id: string,
+  input: { question?: string; answer?: string; order?: number; categoryId?: string },
+): Promise<ApiResult<{ data: { id: string } }>> {
+  return authFetch(`/api/admin/faq/items/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteFaqItem(id: string): Promise<ApiResult<{ message: string }>> {
+  return authFetch(`/api/admin/faq/items/${id}`, { method: 'DELETE' });
+}

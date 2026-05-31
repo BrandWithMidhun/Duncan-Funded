@@ -3,14 +3,11 @@ import Image from 'next/image';
 import { Navbar } from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import PageHeader from '@/components/PageHeader';
-import { JsonLd, breadcrumbSchema } from '@/lib/seo';
+import { JsonLd, breadcrumbSchema, pageMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
-  title: 'Our Heritage',
-  description:
-    'Duncan Funded bridges centuries of Scottish discipline with the velocity of modern markets. Learn about our heritage, values, and FPFX partnership.',
-  alternates: { canonical: '/about' },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata('about', '/about');
+}
 
 const values = [
   {

@@ -3,14 +3,11 @@ import { Navbar } from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import PageHeader from '@/components/PageHeader';
 import ContactForm from '@/components/ContactForm';
-import { JsonLd, breadcrumbSchema } from '@/lib/seo';
+import { JsonLd, breadcrumbSchema, pageMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
-  title: 'Contact',
-  description:
-    'Reach the Duncan Funded council — questions, partnerships, or press inquiries. We respond within one business day.',
-  alternates: { canonical: '/contact' },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata('contact', '/contact');
+}
 
 export default function ContactPage() {
   return (

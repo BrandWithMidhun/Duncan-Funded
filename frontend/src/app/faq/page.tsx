@@ -4,14 +4,11 @@ import Footer from '@/components/Footer';
 import PageHeader from '@/components/PageHeader';
 import FAQSection from '@/components/FAQSection';
 import { faqData } from '@/lib/faq';
-import { JsonLd, faqPageSchema, breadcrumbSchema } from '@/lib/seo';
+import { JsonLd, faqPageSchema, breadcrumbSchema, pageMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
-  title: 'Frequent Questions',
-  description:
-    'Answers to common questions about Duncan Funded — evaluations, payouts, scaling plans, supported platforms, and tradable instruments.',
-  alternates: { canonical: '/faq' },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata('faq', '/faq');
+}
 
 export default function FAQPage() {
   return (

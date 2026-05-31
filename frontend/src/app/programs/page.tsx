@@ -3,14 +3,11 @@ import { Navbar } from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import PageHeader from '@/components/PageHeader';
 import ProgramsSection from '@/components/ProgramsSection';
-import { JsonLd, breadcrumbSchema } from '@/lib/seo';
+import { JsonLd, breadcrumbSchema, pageMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
-  title: 'Funding Programs',
-  description:
-    'Choose your Duncan Funded program — Highland Scout, Clan Warrior, or Chieftain. Account sizes from $10,000 to $200,000 with up to 90% profit split.',
-  alternates: { canonical: '/programs' },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata('programs', '/programs');
+}
 
 export default function ProgramsPage() {
   return (

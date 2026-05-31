@@ -2,14 +2,11 @@ import type { Metadata } from 'next';
 import { Navbar } from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import PageHeader from '@/components/PageHeader';
-import { JsonLd, breadcrumbSchema } from '@/lib/seo';
+import { JsonLd, breadcrumbSchema, pageMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
-  title: 'The Trade Zone',
-  description:
-    'The toolkit every Duncan-funded trader carries — live dashboard, economic calendar, position sizer, trade journal, strategy library, and risk console.',
-  alternates: { canonical: '/trade-zone' },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata('trade-zone', '/trade-zone');
+}
 
 const tools = [
   { name: 'Live Dashboard', desc: 'Real-time P&L, drawdown, and rule monitoring on the FPFX engine.' },

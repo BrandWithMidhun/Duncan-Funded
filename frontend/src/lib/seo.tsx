@@ -93,3 +93,36 @@ export function JsonLd({ data }: { data: object }) {
     />
   );
 }
+
+import type { Metadata } from 'next';
+import { getPageSeo } from './api';
+
+/**
+ * Build Next.js Metadata for a static page from the admin-editable
+ * SEO settings, with sensible fallbacks if the API is unavailable.
+ */
+export async function pageMetadata(slug: string, fallbackPath: string): Promise<Metadata> {
+  const seo = await getPageSeo(slug);
+  if (!seo) {
+    return {
+      alternates: { canonical: fallbackPath },
+    };
+  }
+  return {
+    title: seo.title,
+    description: seo.description,
+    alternates: { canonical: fallbackPath },
+    openGraph: {
+      title: seo.title,
+      description: seo.description,
+      url: fallbackPath,
+      ...(seo.ogImage ? { images: [{ url: seo.ogImage }] } : {}),
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: seo.title,
+      description: seo.description,
+      ...(seo.ogImage ? { images: [seo.ogImage] } : {}),
+    },
+  };
+}

@@ -4,6 +4,8 @@ import * as posts from '../controllers/postController.js';
 import * as misc from '../controllers/miscController.js';
 import * as auth from '../controllers/authController.js';
 import * as settings from '../controllers/settingsController.js';
+import * as seo from '../controllers/seoController.js';
+import * as faq from '../controllers/faqController.js';
 import { getPublishedSlugs } from '../services/postService.js';
 
 const router = Router();
@@ -18,6 +20,21 @@ router.get('/auth/me', requireAuth, auth.me);
 // ---- Site settings ----
 router.get('/settings', settings.getSettings);
 router.put('/admin/settings', requireAuth, settings.updateSettings);
+
+// ---- Per-page SEO ----
+router.get('/seo/:slug', seo.getSeoPage);
+router.get('/admin/seo', requireAuth, seo.listSeoPages);
+router.put('/admin/seo/:slug', requireAuth, seo.updateSeoPage);
+
+// ---- FAQ ----
+router.get('/faq', faq.listPublic);
+router.get('/admin/faq', requireAuth, faq.adminList);
+router.post('/admin/faq/categories', requireAuth, faq.createCategory);
+router.put('/admin/faq/categories/:id', requireAuth, faq.updateCategory);
+router.delete('/admin/faq/categories/:id', requireAuth, faq.deleteCategory);
+router.post('/admin/faq/items', requireAuth, faq.createItem);
+router.put('/admin/faq/items/:id', requireAuth, faq.updateItem);
+router.delete('/admin/faq/items/:id', requireAuth, faq.deleteItem);
 
 // ---- Blog (public, read-only) ----
 router.get('/posts', posts.getPosts);

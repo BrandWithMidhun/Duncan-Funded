@@ -1,19 +1,14 @@
-/** FAQ content — categorized. Shared by the FAQSection client component
- *  and the JSON-LD FAQPage schema. */
-export interface FaqItem {
-  q: string;
-  a: string;
-}
+// Seed the FAQ tables with the initial 7 categories and all their items.
+// Idempotent by default — only seeds if the table is empty.
+// Run with --force to wipe and reseed.
+import 'dotenv/config';
+import { initDb, closeDb } from '../src/lib/db.js';
+import { seedFromStatic } from '../src/services/faqService.js';
 
-export interface FaqCategory {
-  id: string;
-  label: string;
-  faqs: FaqItem[];
-}
-
-export const faqCategories: FaqCategory[] = [
+// Re-declared here so this script is self-contained and doesn't depend
+// on the frontend's TypeScript build.
+const FAQ_CATEGORIES = [
   {
-    id: 'general',
     label: 'General FAQs',
     faqs: [
       { q: 'What is a Hard Breach vs. Soft Breach?', a: 'Soft breach closes violating trades but allows continued trading. Hard breach (Daily Loss Limit, Max Drawdown, or Inactivity) results in account termination.' },
@@ -30,7 +25,6 @@ export const faqCategories: FaqCategory[] = [
     ],
   },
   {
-    id: 'instant-standard',
     label: 'Instant Funding (Standard)',
     faqs: [
       { q: 'What is Instant Funding?', a: 'Direct access to a funded account without an assessment phase.' },
@@ -43,7 +37,6 @@ export const faqCategories: FaqCategory[] = [
     ],
   },
   {
-    id: 'instant-lite',
     label: 'Instant Funding Lite',
     faqs: [
       { q: 'What is the Consistency Rule?', a: "No single day's profit may exceed 25% of total account profit." },
@@ -54,7 +47,6 @@ export const faqCategories: FaqCategory[] = [
     ],
   },
   {
-    id: 'one-step',
     label: 'One Step Program',
     faqs: [
       { q: 'What is the Profit Target?', a: '10% in assessment; none in funded accounts.' },
@@ -68,7 +60,6 @@ export const faqCategories: FaqCategory[] = [
     ],
   },
   {
-    id: 'crypto-one',
     label: 'Crypto One Step',
     faqs: [
       { q: 'What is the Profit Target?', a: '9% in assessment; none in funded accounts.' },
@@ -83,7 +74,6 @@ export const faqCategories: FaqCategory[] = [
     ],
   },
   {
-    id: 'crypto-two',
     label: 'Crypto Two Step',
     faqs: [
       { q: 'What are the Profit Targets?', a: 'Step 1 = 6%, Step 2 = 9%.' },
@@ -98,7 +88,6 @@ export const faqCategories: FaqCategory[] = [
     ],
   },
   {
-    id: 'futures',
     label: 'Funded Futures Program',
     faqs: [
       { q: 'How do the phases work?', a: '4 phases with 9% profit target each, then transition to Live Funded account.' },
@@ -119,5 +108,23 @@ export const faqCategories: FaqCategory[] = [
   },
 ];
 
-/** Flattened list — used by the FAQPage JSON-LD schema. */
-export const faqData: FaqItem[] = faqCategories.flatMap((c) => c.faqs);
+const force = process.argv.includes('--force');
+
+async function main() {
+  console.log(force ? '🌱 Force-seeding FAQ (will wipe existing)...' : '🌱 Seeding FAQ...');
+  await initDb();
+  const result = await seedFromStatic(FAQ_CATEGORIES, { force });
+  if (result.skipped) {
+    console.log('• FAQ already populated — pass --force to reseed. Skipped.');
+  } else {
+    console.log(`✅ Seeded ${result.seeded} categories.`);
+  }
+}
+
+main()
+  .then(() => closeDb())
+  .catch(async (e) => {
+    console.error(e);
+    await closeDb();
+    process.exit(1);
+  });

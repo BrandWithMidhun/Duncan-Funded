@@ -206,3 +206,51 @@ export async function getSettings(): Promise<SiteSettings> {
     return DEFAULT_SETTINGS;
   }
 }
+
+// ---- FAQ (public) ----
+
+export interface PublicFaqItem {
+  id: string;
+  q: string;
+  a: string;
+}
+
+export interface PublicFaqCategory {
+  id: string;
+  slug: string;
+  label: string;
+  faqs: PublicFaqItem[];
+}
+
+/** Fetch all FAQ categories with items. Falls back to [] on error. */
+export async function getFaqCategories(): Promise<PublicFaqCategory[]> {
+  try {
+    const res = await fetch(`${API_URL}/api/faq`, { next: { revalidate: 60 } });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return (json.data as PublicFaqCategory[]) || [];
+  } catch {
+    return [];
+  }
+}
+
+// ---- Per-page SEO (public) ----
+
+export interface PageSeo {
+  slug: string;
+  title: string;
+  description: string;
+  ogImage: string;
+}
+
+/** Fetch SEO content for a single page slug. Returns null if unavailable. */
+export async function getPageSeo(slug: string): Promise<PageSeo | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/seo/${slug}`, { next: { revalidate: 60 } });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return (json.data as PageSeo) || null;
+  } catch {
+    return null;
+  }
+}
