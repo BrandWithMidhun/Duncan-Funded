@@ -64,6 +64,8 @@ const footerLinks = [
   { label: 'How It Works', href: '/#how-it-works' },
   { label: 'FAQ', href: '/faq' },
   { label: 'Terms & Conditions', href: '/terms' },
+  { label: 'Privacy Policy', href: '/privacy' },
+  { label: 'Risk Disclaimer', href: '/disclaimer' },
 ];
 
 export default function Footer() {
@@ -115,7 +117,7 @@ export default function Footer() {
             LLC. If you qualify for a Live Account, you will be required to enter into a Trader
             Agreement with Prop Account LC. Neither Prop Account, LLC nor Prop Account LC provides
             any trading education or other services. All such services are provided by Duncan
-            Funded.
+            Funded. Duncan Funded is a trade name of Superb Choice LLC.
           </p>
         </div>
       </div>
