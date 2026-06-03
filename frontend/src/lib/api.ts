@@ -172,6 +172,12 @@ export interface SiteSettings {
   };
   logoUrl: string | null;
   menu: MenuItem[];
+  integrations: {
+    gtmId: string;
+    metaPixelId: string;
+    whatsappPhone: string;
+    whatsappMessage: string;
+  };
 }
 
 // Defaults — used when the backend is unreachable so the site still renders.
@@ -191,9 +197,15 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     { label: 'FAQ', href: '/faq' },
     { label: 'Contact', href: '/contact' },
   ],
+  integrations: {
+    gtmId: '',
+    metaPixelId: '',
+    whatsappPhone: '',
+    whatsappMessage: '',
+  },
 };
 
-/** Fetch site settings (URLs, logo, menu). Falls back to defaults on error. */
+/** Fetch site settings (URLs, logo, menu, integrations). Falls back to defaults on error. */
 export async function getSettings(): Promise<SiteSettings> {
   try {
     const res = await fetch(`${API_URL}/api/settings`, {
@@ -201,7 +213,13 @@ export async function getSettings(): Promise<SiteSettings> {
     });
     if (!res.ok) return DEFAULT_SETTINGS;
     const json = await res.json();
-    return json.data as SiteSettings;
+    const data = json.data as SiteSettings;
+    // Defensive: ensure integrations always exists even on old backend payloads.
+    return {
+      ...DEFAULT_SETTINGS,
+      ...data,
+      integrations: { ...DEFAULT_SETTINGS.integrations, ...(data.integrations || {}) },
+    };
   } catch {
     return DEFAULT_SETTINGS;
   }

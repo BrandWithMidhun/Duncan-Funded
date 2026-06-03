@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Navbar } from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import PageHeader from '@/components/PageHeader';
-import ProgramsSection from '@/components/ProgramsSection';
+import ProgramsConfigurator from '@/components/ProgramsConfigurator';
 import { JsonLd, breadcrumbSchema, pageMetadata } from '@/lib/seo';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,8 +19,12 @@ export default function ProgramsPage() {
         ])}
       />
       <Navbar />
-      <PageHeader title="FUNDING PROGRAMS" subtitle="Choose your path. Earn your capital." />
-      <ProgramsSection />
+      <PageHeader
+        title="SELECT YOUR FUNDING PROGRAM"
+        subtitle="Choose your program, account size, platform, and add-ons. Your rules and pricing update automatically."
+        eyebrow="Single Page Configurator"
+      />
+      <ProgramsConfigurator />
       <Footer />
     </div>
   );

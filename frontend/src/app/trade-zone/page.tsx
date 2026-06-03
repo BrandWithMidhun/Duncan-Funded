@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Activity, CalendarDays, Calculator, BookOpen, Library, ShieldAlert } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import PageHeader from '@/components/PageHeader';
@@ -9,12 +10,36 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 const tools = [
-  { name: 'Live Dashboard', desc: 'Real-time P&L, drawdown, and rule monitoring on the FPFX engine.' },
-  { name: 'Economic Calendar', desc: 'Stay ahead of high-impact news that moves the markets you trade.' },
-  { name: 'Position Sizer', desc: 'Calculate exact lot sizes against your daily and total loss limits.' },
-  { name: 'Trade Journal', desc: 'Log, tag, and review every setup. The clan rewards reflection.' },
-  { name: 'Strategy Library', desc: 'Curated playbooks from funded Duncan traders, refreshed weekly.' },
-  { name: 'Risk Console', desc: 'Pre-trade checks, max-exposure alerts, and kill-switch automation.' },
+  {
+    name: 'Live Dashboard',
+    desc: 'Real-time P&L, drawdown, and rule monitoring for your funded accounts.',
+    Icon: Activity,
+  },
+  {
+    name: 'Economic Calendar',
+    desc: 'Stay ahead of high-impact news that moves the markets you trade.',
+    Icon: CalendarDays,
+  },
+  {
+    name: 'Position Sizer',
+    desc: 'Calculate precise lot sizes based on your daily and overall loss limits.',
+    Icon: Calculator,
+  },
+  {
+    name: 'Trade Journal',
+    desc: 'Log, tag, and review every setup. The clan rewards reflection.',
+    Icon: BookOpen,
+  },
+  {
+    name: 'Strategy Library',
+    desc: 'Curated playbooks from funded Duncan traders, refreshed regularly.',
+    Icon: Library,
+  },
+  {
+    name: 'Risk Console',
+    desc: 'Pre-trade checks, max-exposure alerts, and kill-switch style protections.',
+    Icon: ShieldAlert,
+  },
 ];
 
 export default function TradeZonePage() {
@@ -41,6 +66,7 @@ export default function TradeZonePage() {
                 i % 3 === 0 ? 'bg-highland/40' : i % 3 === 1 ? 'bg-navy/40' : 'bg-heritage/20'
               }`}
             >
+              <t.Icon className="w-7 h-7 text-gold mb-4" strokeWidth={1.5} />
               <h2 className="font-display text-xl gold-text-gradient font-bold tracking-wider mb-3 uppercase">
                 {t.name}
               </h2>

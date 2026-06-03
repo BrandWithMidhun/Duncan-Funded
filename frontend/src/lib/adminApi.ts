@@ -195,6 +195,12 @@ export interface SiteSettings {
   };
   logoUrl: string | null;
   menu: MenuItem[];
+  integrations: {
+    gtmId: string;
+    metaPixelId: string;
+    whatsappPhone: string;
+    whatsappMessage: string;
+  };
 }
 
 export async function getSettings(): Promise<ApiResult<{ data: SiteSettings }>> {

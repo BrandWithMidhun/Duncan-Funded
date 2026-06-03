@@ -26,6 +26,16 @@ const DEFAULTS = {
     { label: 'FAQ', href: '/faq' },
     { label: 'Contact', href: '/contact' },
   ]),
+  // ---- Marketing / Integrations ----
+  // Google Tag Manager container ID (e.g. "GTM-XXXXXXX"); empty => not loaded.
+  gtm_id: '',
+  // Meta (Facebook) Pixel ID (numeric, e.g. "1234567890123456"); empty => not loaded.
+  meta_pixel_id: '',
+  // WhatsApp phone in international format with no leading + (e.g. "971501234567")
+  // Empty => floating button hidden.
+  whatsapp_phone: '',
+  // Pre-filled message for the WhatsApp chat
+  whatsapp_message: 'Hi, I would like to know more about Duncan Funded.',
 };
 
 /** Ensure the settings table exists (called from initDb's schema, but safe here too). */
@@ -67,6 +77,12 @@ export async function getSettings() {
     },
     logoUrl: merged.logo_url || null,
     menu,
+    integrations: {
+      gtmId: merged.gtm_id || '',
+      metaPixelId: merged.meta_pixel_id || '',
+      whatsappPhone: merged.whatsapp_phone || '',
+      whatsappMessage: merged.whatsapp_message || '',
+    },
   };
 }
 
@@ -102,6 +118,26 @@ export async function updateSettings(input) {
       .map((m) => ({ label: m.label.trim(), href: m.href.trim() }))
       .slice(0, 20);
     updates.menu_items = JSON.stringify(clean);
+  }
+
+  if (input.integrations) {
+    const i = input.integrations;
+    // Strict allow-list: GTM IDs are "GTM-XXXXXXX"; Meta Pixel is numeric.
+    if (typeof i.gtmId === 'string') {
+      const v = i.gtmId.trim();
+      updates.gtm_id = /^(GTM-[A-Z0-9]+)?$/i.test(v) ? v.toUpperCase() : '';
+    }
+    if (typeof i.metaPixelId === 'string') {
+      const v = i.metaPixelId.trim();
+      updates.meta_pixel_id = /^\d{0,20}$/.test(v) ? v : '';
+    }
+    if (typeof i.whatsappPhone === 'string') {
+      // Strip everything except digits (international format expected, no leading +)
+      updates.whatsapp_phone = i.whatsappPhone.replace(/\D/g, '').slice(0, 20);
+    }
+    if (typeof i.whatsappMessage === 'string') {
+      updates.whatsapp_message = i.whatsappMessage.trim().slice(0, 500);
+    }
   }
 
   for (const [key, value] of Object.entries(updates)) {

@@ -57,22 +57,16 @@ export default function HeroSection() {
             transition={{ duration: 1.2, delay: 0.3 }}
           >
             <Image
-              src="/assets/duncan-crest.png"
-              alt="Duncan Clan Crest"
-              width={160}
-              height={160}
-              className="w-28 h-28 md:w-40 md:h-40 mb-6 animate-float"
+              src="/assets/duncan-logo.png"
+              alt="Duncan Funded"
+              width={480}
+              height={200}
+              className="w-72 md:w-[28rem] h-auto mb-6 animate-float mx-auto"
               priority
             />
           </motion.div>
 
-          <h1 className="font-brand font-bold text-4xl md:text-6xl lg:text-7xl tracking-[0.08em] mb-4">
-            <span className="text-foreground">DUNCAN</span>
-            <br />
-            <span className="gold-text-gradient font-light">FUNDED</span>
-          </h1>
-
-          <p className="font-accent text-xl md:text-2xl text-wool-muted italic max-w-xl mx-auto mb-4">
+          <p className="font-accent text-xl md:text-2xl text-wool-muted italic max-w-xl mx-auto mb-4 mt-4">
             Trade with Honour. Profit with Legacy.
           </p>
 

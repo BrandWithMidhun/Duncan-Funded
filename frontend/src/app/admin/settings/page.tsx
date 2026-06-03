@@ -229,6 +229,123 @@ export default function AdminSettingsPage() {
             </div>
           </section>
 
+          {/* ---- Integrations ---- */}
+          <section>
+            <h2 className="font-display text-lg gold-text-gradient font-bold tracking-wider uppercase mb-4">
+              Integrations
+            </h2>
+            <p className="font-body text-xs text-wool-muted mb-6 max-w-2xl">
+              Marketing pixels and contact channels. Leave a field empty to disable that integration.
+            </p>
+            <div className="space-y-5 max-w-2xl">
+              <div>
+                <label className={labelClass}>Google Tag Manager ID</label>
+                <input
+                  value={settings.integrations?.gtmId || ''}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      integrations: {
+                        ...(settings.integrations || {
+                          gtmId: '',
+                          metaPixelId: '',
+                          whatsappPhone: '',
+                          whatsappMessage: '',
+                        }),
+                        gtmId: e.target.value,
+                      },
+                    })
+                  }
+                  placeholder="GTM-XXXXXXX"
+                  className={inputClass}
+                  maxLength={20}
+                />
+                <p className="font-body text-xs text-wool-muted/60 mt-1.5">
+                  Format: <code>GTM-XXXXXXX</code>. Loads on every page when set.
+                </p>
+              </div>
+
+              <div>
+                <label className={labelClass}>Meta (Facebook) Pixel ID</label>
+                <input
+                  value={settings.integrations?.metaPixelId || ''}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      integrations: {
+                        ...(settings.integrations || {
+                          gtmId: '',
+                          metaPixelId: '',
+                          whatsappPhone: '',
+                          whatsappMessage: '',
+                        }),
+                        metaPixelId: e.target.value.replace(/\D/g, ''),
+                      },
+                    })
+                  }
+                  placeholder="1234567890123456"
+                  className={inputClass}
+                  maxLength={20}
+                />
+                <p className="font-body text-xs text-wool-muted/60 mt-1.5">
+                  Numeric Pixel ID from Meta Events Manager. Fires a PageView on every page.
+                </p>
+              </div>
+
+              <div>
+                <label className={labelClass}>WhatsApp Phone Number</label>
+                <input
+                  value={settings.integrations?.whatsappPhone || ''}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      integrations: {
+                        ...(settings.integrations || {
+                          gtmId: '',
+                          metaPixelId: '',
+                          whatsappPhone: '',
+                          whatsappMessage: '',
+                        }),
+                        whatsappPhone: e.target.value.replace(/\D/g, ''),
+                      },
+                    })
+                  }
+                  placeholder="971501234567"
+                  className={inputClass}
+                  maxLength={20}
+                />
+                <p className="font-body text-xs text-wool-muted/60 mt-1.5">
+                  International format, no spaces or <code>+</code>. e.g. UAE <code>9715…</code>, US <code>1212…</code>.
+                </p>
+              </div>
+
+              <div>
+                <label className={labelClass}>WhatsApp Pre-filled Message</label>
+                <textarea
+                  value={settings.integrations?.whatsappMessage || ''}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      integrations: {
+                        ...(settings.integrations || {
+                          gtmId: '',
+                          metaPixelId: '',
+                          whatsappPhone: '',
+                          whatsappMessage: '',
+                        }),
+                        whatsappMessage: e.target.value,
+                      },
+                    })
+                  }
+                  rows={2}
+                  placeholder="Hi, I would like to know more about Duncan Funded."
+                  className={`${inputClass} resize-none`}
+                  maxLength={500}
+                />
+              </div>
+            </div>
+          </section>
+
           {success && (
             <p className="font-body text-sm text-[hsl(150,60%,45%)] bg-[hsl(150,40%,15%)] border border-[hsl(150,40%,30%)] px-4 py-3 rounded-sm">
               {success}
