@@ -20,9 +20,9 @@ export default function ProgramsPage() {
       />
       <Navbar />
       <PageHeader
-        title="SELECT YOUR FUNDING PROGRAM"
-        subtitle="Choose your program, account size, platform, and add-ons. Your rules and pricing update automatically."
-        eyebrow="Single Page Configurator"
+        title="CAPITAL FUNDING"
+        subtitle="Select your capital asset class and prove your mettle."
+        eyebrow="Duncan Capital Funding"
       />
       <ProgramsConfigurator />
       <Footer />

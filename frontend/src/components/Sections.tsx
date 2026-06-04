@@ -6,27 +6,33 @@ import { TradingCandle } from './TradingBackground';
 const steps = [
   {
     number: 'I',
-    title: 'Choose Your Challenge',
+    title: 'Choose Your Capital',
     description:
-      'Select an account size and evaluation type that matches your trading style and ambitions.',
+      'Select your capital size and asset class to begin your journey.',
   },
   {
     number: 'II',
-    title: 'Prove Your Skill',
+    title: 'Select Your Asset Class',
     description:
-      'Trade within the rules, hit profit targets, and demonstrate consistent risk management.',
+      'Each asset class offers its own account types, sizes, and add-ons.',
   },
   {
     number: 'III',
-    title: 'Get Funded',
+    title: 'Prove Your Skill',
     description:
-      'Pass the evaluation and receive a funded account with real capital. Keep up to 90% of profits.',
+      'Trade within defined parameters, meet profit targets, and demonstrate disciplined risk management.',
   },
   {
     number: 'IV',
+    title: 'Receive Trading Capital',
+    description:
+      'Successful traders access real trading capital with up to a 90% profit split and payout protection.',
+  },
+  {
+    number: 'V',
     title: 'Scale & Earn',
     description:
-      'Grow your account through our scaling plan. Consistent traders unlock higher capital and better splits.',
+      "Advance through Duncan's progressive scaling framework as you demonstrate consistency.",
   },
 ];
 
@@ -39,7 +45,7 @@ export function HowItWorksSection() {
           <div className="flex items-center justify-center gap-4 mb-4">
             <div className="w-12 h-px bg-gold/40" />
             <span className="font-accent text-sm tracking-[0.3em] text-gold/70 italic uppercase">
-              The Process
+              The Duncan Pathway
             </span>
             <div className="w-12 h-px bg-gold/40" />
           </div>
@@ -49,7 +55,7 @@ export function HowItWorksSection() {
           </h2>
         </div>
 
-        <div className="grid md:grid-cols-4 gap-8 max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-8 max-w-6xl mx-auto">
           {steps.map((step, i) => (
             <motion.div
               key={step.number}
@@ -59,9 +65,6 @@ export function HowItWorksSection() {
               viewport={{ once: true }}
               className="text-center relative"
             >
-              {i < steps.length - 1 && (
-                <div className="hidden md:block absolute top-8 left-[60%] w-[80%] h-px bg-gold/20" />
-              )}
               <div className="w-16 h-16 mx-auto mb-6 rounded-full border-2 border-gold/40 flex items-center justify-center bg-highland/60">
                 <span className="font-display text-lg text-gold">{step.number}</span>
               </div>
@@ -81,34 +84,34 @@ export function HowItWorksSection() {
 
 const reasons = [
   {
-    title: 'FPFX Powered Infrastructure',
+    title: 'Institutional-Grade Trading Infrastructure',
     description:
-      'Institutional liquidity, stable execution, and transparent pricing built into every account.',
+      'Built on proven, exchange-connected technology with stable execution, transparent pricing, and multi-asset support.',
   },
   {
-    title: 'Up to 90% Profit Split',
+    title: 'Performance-Based Profit Split',
     description:
-      "Keep the lion's share of your earnings. Our scaling plan rewards consistency with even higher payouts.",
+      'Earn up to 90% of profits with payout protection and scaling incentives.',
   },
   {
-    title: 'No Time Limits',
+    title: 'Trade Without Deadlines',
     description:
-      'Trade at your own pace. No artificial deadlines pressuring your decisions.',
+      'No artificial time limits. Focus on performance, not pressure.',
   },
   {
-    title: 'Bi-Weekly Payouts',
+    title: 'Flexible Payouts',
     description:
-      'Fast, reliable withdrawals every two weeks. Your profits, on your schedule.',
+      'Withdraw profits on a bi-weekly schedule or under payout protection terms.',
   },
   {
-    title: 'Scaling Up to $2M',
+    title: 'Progressive Scaling',
     description:
-      'Prove yourself and grow. Our progressive scaling plan takes you from challenge to capital.',
+      'Consistent traders qualify for increased capital allocation across supported asset classes.',
   },
   {
-    title: '24/7 Elite Support',
+    title: 'Trader-Focused Assistance',
     description:
-      'Dedicated account managers and a community of funded traders to support your journey.',
+      'Support designed around real trader needs — clear answers, fast resolutions, and a commitment to transparency.',
   },
 ];
 
