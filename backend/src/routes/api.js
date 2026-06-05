@@ -8,12 +8,16 @@ import * as seo from '../controllers/seoController.js';
 import * as faq from '../controllers/faqController.js';
 import * as content from '../controllers/contentController.js';
 import * as programs from '../controllers/programController.js';
+import * as search from '../controllers/searchController.js';
 import { getPublishedSlugs } from '../services/postService.js';
 
 const router = Router();
 
 // ---- Health ----
 router.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+
+// ---- Site-wide search ----
+router.get('/search', search.search);
 
 // ---- Auth ----
 router.post('/auth/login', auth.login);

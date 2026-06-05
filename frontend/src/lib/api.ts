@@ -323,3 +323,53 @@ export async function getPrograms(): Promise<PublicProgram[]> {
     return [];
   }
 }
+
+// ---- Search (public) ----
+
+export interface SearchPostHit {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  coverImage: string | null;
+  publishedAt: string;
+}
+export interface SearchFaqHit {
+  id: string;
+  question: string;
+  answer: string;
+  categoryId: string;
+  categorySlug: string;
+  categoryLabel: string;
+}
+export interface SearchProgramHit {
+  id: string;
+  slug: string;
+  category: string;
+  name: string;
+  popular: boolean;
+  matchingRules: string[];
+}
+export interface SearchResults {
+  query: string;
+  posts: SearchPostHit[];
+  faqs: SearchFaqHit[];
+  programs: SearchProgramHit[];
+  total: number;
+}
+
+export async function searchSite(q: string): Promise<SearchResults> {
+  try {
+    const res = await fetch(
+      `${API_URL}/api/search?q=${encodeURIComponent(q)}`,
+      { cache: 'no-store' },
+    );
+    if (!res.ok) {
+      return { query: q, posts: [], faqs: [], programs: [], total: 0 };
+    }
+    const json = await res.json();
+    return json.data as SearchResults;
+  } catch {
+    return { query: q, posts: [], faqs: [], programs: [], total: 0 };
+  }
+}

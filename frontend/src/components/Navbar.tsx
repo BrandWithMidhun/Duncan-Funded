@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getSettings, DEFAULT_SETTINGS, type SiteSettings } from '@/lib/api';
+import NavbarSearch from './NavbarSearch';
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -72,6 +73,7 @@ export function Navbar() {
         </div>
 
         <div className="hidden lg:flex items-center gap-3">
+          <NavbarSearch />
           <a
             href={signInUrl}
             target="_blank"
@@ -123,6 +125,7 @@ export function Navbar() {
             className="lg:hidden bg-pine/95 backdrop-blur-xl border-b border-gold/10 overflow-hidden"
           >
             <div className="flex flex-col px-6 py-6 gap-4">
+              <NavbarSearch alwaysOpen />
               {navLinks.map((link) =>
                 isExternal(link.href) ? (
                   <a
