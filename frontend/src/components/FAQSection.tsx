@@ -10,7 +10,13 @@ import { getFaqCategories, type PublicFaqCategory } from '@/lib/api';
  * mount; renders the hardcoded fallback until the response arrives or
  * if the API is unreachable.
  */
-export default function FAQSection() {
+export default function FAQSection({
+  eyebrow = 'Questions',
+  title = 'FAQ',
+}: {
+  eyebrow?: string;
+  title?: string;
+} = {}) {
   const [cats, setCats] = useState<PublicFaqCategory[]>(() =>
     fallback.map((c, i) => ({
       id: c.id,
@@ -46,12 +52,12 @@ export default function FAQSection() {
           <div className="flex items-center justify-center gap-4 mb-4">
             <div className="w-12 h-px bg-gold/40" />
             <span className="font-accent text-sm tracking-[0.3em] text-gold/70 italic uppercase">
-              Questions
+              {eyebrow}
             </span>
             <div className="w-12 h-px bg-gold/40" />
           </div>
           <h2 className="font-display text-3xl md:text-5xl tracking-wider">
-            <span className="gold-text-gradient">FAQ</span>
+            <span className="gold-text-gradient">{title}</span>
           </h2>
         </div>
 

@@ -4,7 +4,13 @@ import { useMemo, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { TradingCandle } from './TradingBackground';
-import { getSettings, DEFAULT_SETTINGS, type SiteSettings } from '@/lib/api';
+import {
+  getSettings,
+  DEFAULT_SETTINGS,
+  getPrograms,
+  type SiteSettings,
+  type PublicProgram,
+} from '@/lib/api';
 
 type Addon = {
   id: string;
@@ -178,10 +184,22 @@ const formatPrice = (n: number) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
 export default function ProgramsConfigurator() {
-  const [programId, setProgramId] = useState<string>(programs[2].id);
-  const program = useMemo(() => programs.find((p) => p.id === programId)!, [programId]);
-  const [size, setSize] = useState<number>(program.sizes[2] ?? program.sizes[0]);
-  const [platform, setPlatform] = useState<string>(program.platforms[0]);
+  // The hardcoded `programs` array below acts as the fallback used until
+  // the API responds (or permanently if it never does).
+  const [livePrograms, setLivePrograms] = useState<Program[] | null>(null);
+  const effectivePrograms = livePrograms ?? programs;
+  const fallbackInitialId = effectivePrograms[2]?.id ?? effectivePrograms[0]?.id ?? '';
+  const [programId, setProgramId] = useState<string>(fallbackInitialId);
+
+  // Resolve current program from the effective list. Defaults to first
+  // if the previously-selected id no longer exists (admin deleted it, etc).
+  const program = useMemo(
+    () => effectivePrograms.find((p) => p.id === programId) ?? effectivePrograms[0],
+    [effectivePrograms, programId],
+  );
+
+  const [size, setSize] = useState<number>(program?.sizes[2] ?? program?.sizes[0] ?? 0);
+  const [platform, setPlatform] = useState<string>(program?.platforms[0] ?? '');
   const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>({});
   const [agreed, setAgreed] = useState(false);
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
@@ -190,16 +208,49 @@ export default function ProgramsConfigurator() {
   useEffect(() => {
     let active = true;
     getSettings().then((s) => active && setSettings(s));
+    getPrograms().then((list: PublicProgram[]) => {
+      if (!active || list.length === 0) return;
+      // Map PublicProgram -> Program (adapter — server includes extra fields)
+      const mapped: Program[] = list.map((p) => ({
+        id: p.id,
+        name: p.name,
+        platforms: p.platforms,
+        sizes: p.sizes,
+        prices: Object.fromEntries(
+          Object.entries(p.prices).map(([k, v]) => [Number(k), Number(v)]),
+        ) as Record<number, number>,
+        rules: p.rules,
+        addons: p.addons.map((a) => ({
+          id: a.id,
+          label: a.label,
+          percent: a.percent,
+          ...(a.group ? { group: a.group } : {}),
+        })),
+      }));
+      setLivePrograms(mapped);
+      // Re-seat selection if current id isn't in the new list
+      if (!mapped.find((p) => p.id === programId)) {
+        const next = mapped[2] ?? mapped[0];
+        setProgramId(next.id);
+        setSize(next.sizes[2] ?? next.sizes[0] ?? 0);
+        setPlatform(next.platforms[0] ?? '');
+        setSelectedAddons({});
+      }
+    });
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  if (!program) return null;
+
   const handleProgramChange = (id: string) => {
-    const next = programs.find((p) => p.id === id)!;
+    const next = effectivePrograms.find((p) => p.id === id);
+    if (!next) return;
     setProgramId(id);
-    if (!next.sizes.includes(size)) setSize(next.sizes[Math.min(2, next.sizes.length - 1)]);
-    if (!next.platforms.includes(platform)) setPlatform(next.platforms[0]);
+    if (!next.sizes.includes(size)) setSize(next.sizes[Math.min(2, next.sizes.length - 1)] ?? 0);
+    if (!next.platforms.includes(platform)) setPlatform(next.platforms[0] ?? '');
     setSelectedAddons({});
   };
 
@@ -260,7 +311,7 @@ export default function ProgramsConfigurator() {
                 Program Type
               </h2>
               <div className="border border-gold/20 bg-highland/40 backdrop-blur-sm rounded-sm divide-y divide-gold/10">
-                {programs.map((p) => {
+                {effectivePrograms.map((p) => {
                   const active = p.id === programId;
                   return (
                     <label

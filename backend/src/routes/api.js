@@ -6,6 +6,8 @@ import * as auth from '../controllers/authController.js';
 import * as settings from '../controllers/settingsController.js';
 import * as seo from '../controllers/seoController.js';
 import * as faq from '../controllers/faqController.js';
+import * as content from '../controllers/contentController.js';
+import * as programs from '../controllers/programController.js';
 import { getPublishedSlugs } from '../services/postService.js';
 
 const router = Router();
@@ -35,6 +37,19 @@ router.delete('/admin/faq/categories/:id', requireAuth, faq.deleteCategory);
 router.post('/admin/faq/items', requireAuth, faq.createItem);
 router.put('/admin/faq/items/:id', requireAuth, faq.updateItem);
 router.delete('/admin/faq/items/:id', requireAuth, faq.deleteItem);
+
+// ---- Content blocks ----
+router.get('/content', content.getContent);
+router.get('/admin/content', requireAuth, content.adminList);
+router.put('/admin/content', requireAuth, content.adminUpdate);
+
+// ---- Programs ----
+router.get('/programs', programs.listPublic);
+router.get('/admin/programs', requireAuth, programs.adminList);
+router.get('/admin/programs/:id', requireAuth, programs.adminGet);
+router.post('/admin/programs', requireAuth, programs.adminCreate);
+router.put('/admin/programs/:id', requireAuth, programs.adminUpdate);
+router.delete('/admin/programs/:id', requireAuth, programs.adminDelete);
 
 // ---- Blog (public, read-only) ----
 router.get('/posts', posts.getPosts);

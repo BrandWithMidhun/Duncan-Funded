@@ -310,3 +310,87 @@ export async function updateFaqItem(
 export async function deleteFaqItem(id: string): Promise<ApiResult<{ message: string }>> {
   return authFetch(`/api/admin/faq/items/${id}`, { method: 'DELETE' });
 }
+
+// ---- Content Blocks ----
+
+export interface ContentBlock {
+  key: string;
+  label: string;
+  kind: 'text' | 'textarea' | 'url';
+  default: string;
+  value: string;
+  help?: string;
+}
+
+export interface ContentSection {
+  page: string;
+  label: string;
+  blocks: ContentBlock[];
+}
+
+export async function listContent(): Promise<ApiResult<{ data: ContentSection[] }>> {
+  return authFetch<{ data: ContentSection[] }>('/api/admin/content');
+}
+
+export async function updateContent(
+  values: Record<string, string>,
+): Promise<ApiResult<{ data: { updated: number } }>> {
+  return authFetch<{ data: { updated: number } }>('/api/admin/content', {
+    method: 'PUT',
+    body: JSON.stringify(values),
+  });
+}
+
+// ---- Programs ----
+
+export interface ProgramAddon {
+  id: string;
+  label: string;
+  percent: number;
+  group?: string;
+}
+
+export interface Program {
+  id: string;
+  slug: string;
+  category: 'forex' | 'crypto' | 'futures' | 'equities';
+  name: string;
+  popular: boolean;
+  platforms: string[];
+  sizes: number[];
+  prices: Record<number, number>;
+  rules: string[];
+  addons: ProgramAddon[];
+  order: number;
+}
+
+export async function listPrograms(): Promise<ApiResult<{ data: Program[] }>> {
+  return authFetch<{ data: Program[] }>('/api/admin/programs');
+}
+
+export async function getProgram(id: string): Promise<ApiResult<{ data: Program }>> {
+  return authFetch<{ data: Program }>(`/api/admin/programs/${id}`);
+}
+
+export async function createProgram(
+  input: Omit<Program, 'id' | 'slug'>,
+): Promise<ApiResult<{ data: Program }>> {
+  return authFetch<{ data: Program }>('/api/admin/programs', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateProgram(
+  id: string,
+  input: Partial<Omit<Program, 'id' | 'slug'>>,
+): Promise<ApiResult<{ data: Program }>> {
+  return authFetch<{ data: Program }>(`/api/admin/programs/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteProgram(id: string): Promise<ApiResult<{ message: string }>> {
+  return authFetch<{ message: string }>(`/api/admin/programs/${id}`, { method: 'DELETE' });
+}

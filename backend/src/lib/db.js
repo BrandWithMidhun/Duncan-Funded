@@ -137,6 +137,30 @@ CREATE TABLE IF NOT EXISTS faq_items (
 );
 
 CREATE INDEX IF NOT EXISTS faq_items_category_idx ON faq_items("categoryId");
+
+CREATE TABLE IF NOT EXISTS content_blocks (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL DEFAULT '',
+  "updatedAt" TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS programs (
+  id TEXT PRIMARY KEY,
+  slug TEXT UNIQUE NOT NULL,
+  category TEXT NOT NULL,
+  name TEXT NOT NULL,
+  popular BOOLEAN NOT NULL DEFAULT FALSE,
+  platforms JSONB NOT NULL DEFAULT '[]'::jsonb,
+  sizes JSONB NOT NULL DEFAULT '[]'::jsonb,
+  prices JSONB NOT NULL DEFAULT '{}'::jsonb,
+  rules JSONB NOT NULL DEFAULT '[]'::jsonb,
+  addons JSONB NOT NULL DEFAULT '[]'::jsonb,
+  "order" INTEGER NOT NULL DEFAULT 0,
+  "createdAt" TIMESTAMPTZ NOT NULL,
+  "updatedAt" TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS programs_category_idx ON programs(category);
+CREATE INDEX IF NOT EXISTS programs_order_idx ON programs("order");
 `;
 
 /**
@@ -168,7 +192,10 @@ export async function get(sql, params = []) {
 
 /** Run a write statement. */
 export async function run(sql, params = []) {
-  await pool.query(toPgParams(sql), params);
+  const result = await pool.query(toPgParams(sql), params);
+  // Return rowCount so callers can check if any rows were affected
+  // (relevant for DELETE / UPDATE statements).
+  return result.rowCount;
 }
 
 /**

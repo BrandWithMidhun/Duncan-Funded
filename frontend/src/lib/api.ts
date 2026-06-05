@@ -272,3 +272,54 @@ export async function getPageSeo(slug: string): Promise<PageSeo | null> {
     return null;
   }
 }
+
+// ---- Content blocks (public) ----
+
+export type ContentMap = Record<string, string>;
+
+/** Fetch the public content map. Always returns an object — empty if API down. */
+export async function getContent(): Promise<ContentMap> {
+  try {
+    const res = await fetch(`${API_URL}/api/content`, { next: { revalidate: 30 } });
+    if (!res.ok) return {};
+    const json = await res.json();
+    return (json.data as ContentMap) || {};
+  } catch {
+    return {};
+  }
+}
+
+// ---- Programs (public) ----
+
+export interface PublicProgramAddon {
+  id: string;
+  label: string;
+  percent: number;
+  group?: string;
+}
+
+export interface PublicProgram {
+  id: string;
+  slug: string;
+  category: 'forex' | 'crypto' | 'futures' | 'equities';
+  name: string;
+  popular: boolean;
+  platforms: string[];
+  sizes: number[];
+  prices: Record<string, number>;
+  rules: string[];
+  addons: PublicProgramAddon[];
+  order: number;
+}
+
+/** Fetch the public program list. Returns [] on error. */
+export async function getPrograms(): Promise<PublicProgram[]> {
+  try {
+    const res = await fetch(`${API_URL}/api/programs`, { next: { revalidate: 30 } });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return (json.data as PublicProgram[]) || [];
+  } catch {
+    return [];
+  }
+}

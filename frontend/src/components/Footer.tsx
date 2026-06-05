@@ -1,63 +1,7 @@
-'use client';
-
-import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { subscribeNewsletter } from '@/lib/api';
-
-function NewsletterForm() {
-  const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
-  const [message, setMessage] = useState('');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-    setStatus('loading');
-    const res = await subscribeNewsletter(email, 'footer');
-    setMessage(res.message);
-    setStatus(res.ok ? 'done' : 'error');
-    if (res.ok) setEmail('');
-  };
-
-  return (
-    <div className="w-full max-w-md">
-      <h3 className="font-display text-sm tracking-[0.2em] text-gold mb-2 uppercase">
-        Join the Duncan Roll
-      </h3>
-      <p className="font-body text-xs text-wool-muted/70 mb-4">
-        Trading insight, evaluation tips, and clan updates — straight to your inbox.
-      </p>
-      <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
-        <input
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="your@email.com"
-          aria-label="Email address"
-          className="flex-1 bg-pine/60 border border-gold/20 px-4 py-2.5 rounded-sm font-body text-sm text-wool focus:border-gold outline-none transition"
-        />
-        <button
-          type="submit"
-          disabled={status === 'loading'}
-          className="font-body text-xs tracking-wider text-gold tartan-button px-5 py-2.5 rounded-sm hover:text-gold-light transition-all uppercase disabled:opacity-60"
-        >
-          {status === 'loading' ? 'Sending…' : 'Subscribe'}
-        </button>
-      </form>
-      {message && (
-        <p
-          className={`mt-3 font-body text-xs ${
-            status === 'error' ? 'text-heritage' : 'text-[hsl(150,60%,45%)]'
-          }`}
-        >
-          {message}
-        </p>
-      )}
-    </div>
-  );
-}
+import NewsletterForm from './NewsletterForm';
+import { getContent } from '@/lib/api';
 
 const footerLinks = [
   { label: 'Programs', href: '/programs' },
@@ -68,7 +12,23 @@ const footerLinks = [
   { label: 'Risk Disclaimer', href: '/disclaimer' },
 ];
 
-export default function Footer() {
+const DEFAULT_COPYRIGHT =
+  '© 2026 Duncan Funded. Built on institutional-grade trading technology. All rights reserved.';
+const DEFAULT_DISCLAIMER =
+  'Disclaimer: Duncan Funded is an affiliate of Prop Account, LLC. All live assessments are provided by Prop Account, LC and all assessment fees are paid to Prop Account, LLC. If you qualify for a Live Account, you will be required to enter into a Trader Agreement with Prop Account LC. Neither Prop Account, LLC nor Prop Account LC provides any trading education or other services. All such services are provided by Duncan Funded. Duncan Funded is a trade name of Superb Choice LLC.';
+
+export default async function Footer() {
+  const c = await getContent();
+  const pick = (key: string, fb: string) => (c[key] && c[key].trim()) || fb;
+
+  const newsletterHeading = pick('footer.newsletter_heading', 'Join the Duncan Roll');
+  const newsletterParagraph = pick(
+    'footer.newsletter_paragraph',
+    'Trading insight, evaluation tips, and clan updates — straight to your inbox.',
+  );
+  const copyright = pick('footer.copyright', DEFAULT_COPYRIGHT);
+  const disclaimer = pick('footer.disclaimer', DEFAULT_DISCLAIMER);
+
   return (
     <footer className="py-16 border-t border-gold/10 relative bg-pine">
       <div className="absolute inset-0 tartan-texture opacity-5" />
@@ -102,22 +62,14 @@ export default function Footer() {
           </div>
 
           <div className="flex justify-center md:justify-end">
-            <NewsletterForm />
+            <NewsletterForm heading={newsletterHeading} paragraph={newsletterParagraph} />
           </div>
         </div>
 
         <div className="flex flex-col items-center text-center border-t border-gold/10 pt-8">
-          <p className="font-body text-xs text-wool-muted/60 tracking-wide">
-            © 2026 Duncan Funded. Built on institutional-grade trading technology. All rights
-            reserved.
-          </p>
+          <p className="font-body text-xs text-wool-muted/60 tracking-wide">{copyright}</p>
           <p className="font-body text-[10px] text-wool-muted/40 mt-3 max-w-2xl tracking-wide leading-relaxed">
-            Disclaimer: Duncan Funded is an affiliate of Prop Account, LLC. All live assessments
-            are provided by Prop Account, LC and all assessment fees are paid to Prop Account,
-            LLC. If you qualify for a Live Account, you will be required to enter into a Trader
-            Agreement with Prop Account LC. Neither Prop Account, LLC nor Prop Account LC provides
-            any trading education or other services. All such services are provided by Duncan
-            Funded. Duncan Funded is a trade name of Superb Choice LLC.
+            {disclaimer}
           </p>
         </div>
       </div>

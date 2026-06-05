@@ -12,7 +12,8 @@
     "start": "node src/server.js",
     "seed": "node scripts/seed.js",
     "setup:admin": "node scripts/setup-admin.js",
-    "seed:faq": "node scripts/seed-faq.js"
+    "seed:faq": "node scripts/seed-faq.js",
+    "seed:programs": "node scripts/seed-programs.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
