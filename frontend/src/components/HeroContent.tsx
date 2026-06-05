@@ -91,10 +91,11 @@ export default function HeroContent({
             <Image
               src="/assets/duncan-crest.png"
               alt="Duncan Clan Crest"
-              width={400}
-              height={400}
-              quality={100}
-              className="w-36 md:w-48 h-auto mb-8 animate-float mx-auto drop-shadow-[0_4px_24px_rgba(212,175,55,0.15)]"
+              width={200}
+              height={200}
+              quality={85}
+              sizes="(min-width: 768px) 96px, 72px"
+              className="w-[72px] md:w-24 h-auto mb-6 animate-float mx-auto drop-shadow-[0_4px_14px_rgba(212,175,55,0.12)]"
               priority
             />
           </motion.div>

@@ -9,6 +9,7 @@ import rateLimit from 'express-rate-limit';
 import apiRoutes from './routes/api.js';
 import { notFound, errorHandler } from './middleware/index.js';
 import { initDb, closeDb } from './lib/db.js';
+import { autoSeedIfEmpty as autoSeedPrograms } from './services/programService.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -55,7 +56,16 @@ app.use(errorHandler);
 
 // Initialise the database, then start listening.
 initDb()
-  .then(() => {
+  .then(async () => {
+    // First-boot seeding — only acts when the programs table is empty
+    // so it's safe to keep on every restart in production.
+    try {
+      const r = await autoSeedPrograms();
+      if (r.seeded) console.log(`✓ Auto-seeded ${r.seeded} default programs.`);
+    } catch (e) {
+      console.warn('Program auto-seed skipped:', e.message);
+    }
+
     const server = app.listen(PORT, () => {
       console.log(`⚔  Duncan Funded API running on port ${PORT}`);
     });

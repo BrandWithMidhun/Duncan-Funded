@@ -183,3 +183,48 @@ export async function deleteProgram(id) {
   if (!res) throw new ApiError(404, 'Program not found');
   return { id };
 }
+
+/**
+ * Seed the 8 default programs if and only if the programs table is empty.
+ * Called from the server boot sequence — safe to call every start since
+ * it short-circuits on any existing row. Admins can edit or delete the
+ * seeded entries afterwards.
+ */
+export async function autoSeedIfEmpty() {
+  const existing = await get('SELECT COUNT(*) AS n FROM programs', []);
+  if (Number(existing.n) > 0) return { skipped: true, existing: Number(existing.n) };
+
+  const { DEFAULT_PROGRAMS } = await import('../data/defaultPrograms.js');
+  let i = 0;
+  for (const p of DEFAULT_PROGRAMS) {
+    const id = genId();
+    let slug = toSlug(p.name);
+    let n = 2;
+    // Defensive against rerun-race conditions: dedupe slug.
+    while (await get('SELECT 1 FROM programs WHERE slug = ?', [slug])) {
+      slug = `${toSlug(p.name)}-${n++}`;
+    }
+    const ts = now();
+    await run(
+      `INSERT INTO programs
+       (id, slug, category, name, popular, platforms, sizes, prices, rules, addons, "order", "createdAt", "updatedAt")
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        slug,
+        p.category,
+        p.name,
+        p.popular || false,
+        JSON.stringify(p.platforms || []),
+        JSON.stringify(p.sizes || []),
+        JSON.stringify(p.prices || {}),
+        JSON.stringify(p.rules || []),
+        JSON.stringify(p.addons || []),
+        i++,
+        ts,
+        ts,
+      ],
+    );
+  }
+  return { seeded: i };
+}
