@@ -161,6 +161,45 @@ CREATE TABLE IF NOT EXISTS programs (
 );
 CREATE INDEX IF NOT EXISTS programs_category_idx ON programs(category);
 CREATE INDEX IF NOT EXISTS programs_order_idx ON programs("order");
+
+CREATE TABLE IF NOT EXISTS chat_sessions (
+  id TEXT PRIMARY KEY,
+  "visitorId" TEXT NOT NULL,
+  "ipAddress" TEXT,
+  "userAgent" TEXT,
+  "createdAt" TIMESTAMPTZ NOT NULL,
+  "lastMessageAt" TIMESTAMPTZ NOT NULL,
+  flagged BOOLEAN NOT NULL DEFAULT FALSE,
+  exemplar BOOLEAN NOT NULL DEFAULT FALSE
+);
+CREATE INDEX IF NOT EXISTS chat_sessions_visitor_idx ON chat_sessions("visitorId");
+CREATE INDEX IF NOT EXISTS chat_sessions_last_message_idx ON chat_sessions("lastMessageAt" DESC);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id TEXT PRIMARY KEY,
+  "sessionId" TEXT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+  role TEXT NOT NULL,
+  content TEXT NOT NULL,
+  "tokensIn" INTEGER NOT NULL DEFAULT 0,
+  "tokensOut" INTEGER NOT NULL DEFAULT 0,
+  "createdAt" TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS chat_messages_session_idx ON chat_messages("sessionId", "createdAt" ASC);
+
+CREATE TABLE IF NOT EXISTS chat_usage (
+  "yearMonth" TEXT PRIMARY KEY,
+  "tokensIn" BIGINT NOT NULL DEFAULT 0,
+  "tokensOut" BIGINT NOT NULL DEFAULT 0,
+  "messageCount" INTEGER NOT NULL DEFAULT 0,
+  "updatedAt" TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS chat_rate_limit (
+  id BIGSERIAL PRIMARY KEY,
+  "ipAddress" TEXT NOT NULL,
+  "createdAt" TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS chat_rate_limit_ip_idx ON chat_rate_limit("ipAddress", "createdAt" DESC);
 `;
 
 /**

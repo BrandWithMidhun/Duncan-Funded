@@ -9,6 +9,7 @@ import * as faq from '../controllers/faqController.js';
 import * as content from '../controllers/contentController.js';
 import * as programs from '../controllers/programController.js';
 import * as search from '../controllers/searchController.js';
+import * as chat from '../controllers/chatController.js';
 import { getPublishedSlugs } from '../services/postService.js';
 
 const router = Router();
@@ -84,5 +85,13 @@ router.get('/sitemap-data', async (_req, res, next) => {
     next(e);
   }
 });
+
+// ---- Chatbot ----
+router.post('/chat', chat.sendMessage);
+router.get('/admin/chats', requireAuth, chat.listSessions);
+router.get('/admin/chats/usage', requireAuth, chat.usage);
+router.get('/admin/chats/:id', requireAuth, chat.getSession);
+router.put('/admin/chats/:id/flags', requireAuth, chat.setFlags);
+router.delete('/admin/chats/:id', requireAuth, chat.deleteSession);
 
 export default router;

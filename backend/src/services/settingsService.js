@@ -36,6 +36,16 @@ const DEFAULTS = {
   whatsapp_phone: '',
   // Pre-filled message for the WhatsApp chat
   whatsapp_message: 'Hi, I would like to know more about Duncan Funded.',
+  // ---- Chatbot ----
+  chatbot_enabled: 'true',
+  chatbot_model: 'claude-haiku-4-5-20251001',
+  chatbot_monthly_token_budget: '15000000', // ~$50 with Haiku 4.5
+  chatbot_rate_per_hour: '20',
+  chatbot_rate_per_day: '100',
+  chatbot_max_messages_per_session: '40',
+  chatbot_opening_message:
+    "Welcome to Duncan Funded. I can answer questions about our challenges, evaluation rules, payouts, and supported platforms. I do not provide financial or investment advice. How can I help?",
+  chatbot_system_extras: '',
 };
 
 /** Ensure the settings table exists (called from initDb's schema, but safe here too). */
@@ -82,6 +92,16 @@ export async function getSettings() {
       metaPixelId: merged.meta_pixel_id || '',
       whatsappPhone: merged.whatsapp_phone || '',
       whatsappMessage: merged.whatsapp_message || '',
+    },
+    chatbot: {
+      enabled: merged.chatbot_enabled !== 'false',
+      model: merged.chatbot_model || 'claude-haiku-4-5-20251001',
+      monthlyTokenBudget: Number(merged.chatbot_monthly_token_budget) || 15_000_000,
+      ratePerHour: Number(merged.chatbot_rate_per_hour) || 20,
+      ratePerDay: Number(merged.chatbot_rate_per_day) || 100,
+      maxMessagesPerSession: Number(merged.chatbot_max_messages_per_session) || 40,
+      openingMessage: merged.chatbot_opening_message || '',
+      systemExtras: merged.chatbot_system_extras || '',
     },
   };
 }
@@ -137,6 +157,38 @@ export async function updateSettings(input) {
     }
     if (typeof i.whatsappMessage === 'string') {
       updates.whatsapp_message = i.whatsappMessage.trim().slice(0, 500);
+    }
+  }
+
+  if (input.chatbot) {
+    const cb = input.chatbot;
+    if (cb.enabled !== undefined) updates.chatbot_enabled = cb.enabled ? 'true' : 'false';
+    if (typeof cb.model === 'string') {
+      // Allow only Anthropic model strings we support
+      const allowed = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-5-20250929'];
+      if (allowed.includes(cb.model)) updates.chatbot_model = cb.model;
+    }
+    if (cb.monthlyTokenBudget !== undefined) {
+      const n = Math.max(0, Math.min(1_000_000_000, Number(cb.monthlyTokenBudget) || 0));
+      updates.chatbot_monthly_token_budget = String(n);
+    }
+    if (cb.ratePerHour !== undefined) {
+      const n = Math.max(1, Math.min(500, Number(cb.ratePerHour) || 20));
+      updates.chatbot_rate_per_hour = String(n);
+    }
+    if (cb.ratePerDay !== undefined) {
+      const n = Math.max(1, Math.min(5000, Number(cb.ratePerDay) || 100));
+      updates.chatbot_rate_per_day = String(n);
+    }
+    if (cb.maxMessagesPerSession !== undefined) {
+      const n = Math.max(2, Math.min(200, Number(cb.maxMessagesPerSession) || 40));
+      updates.chatbot_max_messages_per_session = String(n);
+    }
+    if (typeof cb.openingMessage === 'string') {
+      updates.chatbot_opening_message = cb.openingMessage.trim().slice(0, 2000);
+    }
+    if (typeof cb.systemExtras === 'string') {
+      updates.chatbot_system_extras = cb.systemExtras.trim().slice(0, 8000);
     }
   }
 

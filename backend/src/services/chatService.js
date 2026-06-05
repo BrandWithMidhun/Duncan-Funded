@@ -1,0 +1,416 @@
+import Anthropic from '@anthropic-ai/sdk';
+import { all, get, run } from '../lib/db.js';
+import { ApiError, genId, now } from '../lib/helpers.js';
+import { getSettings } from './settingsService.js';
+import { listPrograms } from './programService.js';
+import { getAllContent } from './contentService.js';
+import { enforceCompliance, SAFE_FALLBACK } from './chatCompliance.js';
+
+const apiKey = process.env.ANTHROPIC_API_KEY;
+const client = apiKey ? new Anthropic({ apiKey }) : null;
+
+/**
+ * Compose the system prompt. Includes:
+ *   - hard compliance rules (repeated at start and end — LLMs follow
+ *     instructions better when they bookend the prompt)
+ *   - live programs from the DB (so admin edits show up immediately)
+ *   - selected FAQ items
+ *   - selected content blocks
+ *   - any admin-appended "systemExtras"
+ */
+async function buildSystemPrompt(settings) {
+  const programs = await listPrograms();
+  const content = await getAllContent();
+
+  // FAQ — pull the top 25 items, ordered by category then position
+  const faqs = await all(
+    `SELECT i.question, i.answer, c.label AS "categoryLabel"
+     FROM faq_items i JOIN faq_categories c ON c.id = i."categoryId"
+     ORDER BY c."order" ASC, i."order" ASC
+     LIMIT 25`,
+  );
+
+  // Format programs for the prompt — compact but complete
+  const programsBlock = programs
+    .map((p) => {
+      const sizes = (p.sizes || []).map((s) => `$${s.toLocaleString()}`).join(', ');
+      const prices = Object.entries(p.prices || {})
+        .map(([s, v]) => `$${Number(s).toLocaleString()}: $${v}`)
+        .join(', ');
+      return [
+        `### ${p.name}${p.popular ? ' [Popular]' : ''}`,
+        `Category: ${p.category}`,
+        `Account sizes: ${sizes || 'n/a'}`,
+        `Pricing: ${prices || 'n/a'}`,
+        `Platforms: ${(p.platforms || []).join(', ') || 'n/a'}`,
+        `Rules:`,
+        ...(p.rules || []).map((r) => `  - ${r}`),
+      ].join('\n');
+    })
+    .join('\n\n');
+
+  const faqBlock = faqs
+    .map((f) => `Q: ${f.question}\nA: ${f.answer}`)
+    .join('\n\n');
+
+  // Pull a few key content blocks for "about the firm" context
+  const aboutBlock = [
+    content['about.paragraph1'],
+    content['about.paragraph2'],
+    content['about.paragraph3'],
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
+  const COMPLIANCE_RULES = `
+CRITICAL COMPLIANCE RULES — NEVER VIOLATE:
+
+1. Duncan Funded sells EDUCATIONAL CHALLENGES and EVALUATION SERVICES.
+   It does NOT sell investments, securities, or financial products.
+   Refer to its offerings as "challenges", "evaluations", "programs",
+   or "accounts" — NEVER as investments.
+
+2. NEVER use these terms or any variants:
+   - invest, investment, investor, investing
+   - securities, brokerage, portfolio
+   - financial advice, financial advisor, wealth management
+   - "suitable for you", "best investment", "right for you"
+   - guaranteed returns, guaranteed profits, risk-free, sure-fire
+
+3. NEVER recommend a specific challenge as best for the user. You may
+   describe what each challenge offers and let the user decide. If
+   asked "which one should I pick?", describe the trade-offs neutrally
+   and suggest they review the full details on the Programs page.
+
+4. NEVER predict, project, or imply returns. Talk only about rules,
+   profit splits as defined in the program, drawdown limits, and
+   evaluation structure.
+
+5. NEVER answer questions about specific markets, trading strategies,
+   when to buy/sell anything, or how to make money trading. Politely
+   decline and redirect to evaluation-specific topics.
+
+6. For ANY question about taxes, legal status, regulatory licensing,
+   refunds, account suspension, or personal data: defer to
+   support@duncanfunded.com. Do not invent answers.
+
+7. Use only the information in the KNOWLEDGE BASE below to answer
+   product questions. If asked something not in the knowledge base,
+   say you don't know and suggest contacting support.
+`.trim();
+
+  return [
+    COMPLIANCE_RULES,
+    '',
+    '## ABOUT DUNCAN FUNDED',
+    aboutBlock || 'Duncan Funded is a prop firm providing capital allocation challenges.',
+    '',
+    '## PROGRAMS / CHALLENGES',
+    programsBlock || '(no programs configured)',
+    '',
+    '## FREQUENTLY ASKED QUESTIONS',
+    faqBlock || '(no FAQs configured)',
+    '',
+    settings.chatbot.systemExtras
+      ? `## ADDITIONAL ADMIN GUIDANCE\n${settings.chatbot.systemExtras}`
+      : '',
+    '',
+    '## REMINDER OF CRITICAL RULES',
+    COMPLIANCE_RULES,
+    '',
+    '## RESPONSE STYLE',
+    '- Be concise. 1-4 sentences per reply unless the user asks for detail.',
+    '- Be direct and confident about what we offer.',
+    '- Markdown formatting: light bullets and **bold** are fine. No headings.',
+    '- If a user expresses interest in a program, point them to the Programs page (/programs).',
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+// ---- Rate limiting ----
+
+const HOUR_MS = 3600 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+async function checkRateLimit(ipAddress, settings) {
+  if (!ipAddress) return; // can't enforce without IP — let it through
+
+  const sinceHour = new Date(Date.now() - HOUR_MS).toISOString();
+  const sinceDay = new Date(Date.now() - DAY_MS).toISOString();
+
+  const hourly = await get(
+    'SELECT COUNT(*) AS n FROM chat_rate_limit WHERE "ipAddress" = ? AND "createdAt" >= ?',
+    [ipAddress, sinceHour],
+  );
+  if (Number(hourly.n) >= settings.chatbot.ratePerHour) {
+    throw new ApiError(
+      429,
+      `You've sent a lot of messages recently. Please wait a bit before sending more.`,
+    );
+  }
+  const daily = await get(
+    'SELECT COUNT(*) AS n FROM chat_rate_limit WHERE "ipAddress" = ? AND "createdAt" >= ?',
+    [ipAddress, sinceDay],
+  );
+  if (Number(daily.n) >= settings.chatbot.ratePerDay) {
+    throw new ApiError(
+      429,
+      `You've reached today's chat limit. Please come back tomorrow or contact support@duncanfunded.com.`,
+    );
+  }
+
+  // Garbage-collect rows older than 25 hours so the table stays small.
+  await run(
+    'DELETE FROM chat_rate_limit WHERE "createdAt" < ?',
+    [new Date(Date.now() - 25 * HOUR_MS).toISOString()],
+  );
+  await run(
+    'INSERT INTO chat_rate_limit ("ipAddress", "createdAt") VALUES (?, ?)',
+    [ipAddress, now()],
+  );
+}
+
+// ---- Monthly token budget ----
+
+function currentYearMonth() {
+  const d = new Date();
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+async function checkMonthlyBudget(settings) {
+  const ym = currentYearMonth();
+  const row = await get(
+    'SELECT "tokensIn", "tokensOut" FROM chat_usage WHERE "yearMonth" = ?',
+    [ym],
+  );
+  if (!row) return;
+  const total = Number(row.tokensIn) + Number(row.tokensOut);
+  if (total >= settings.chatbot.monthlyTokenBudget) {
+    throw new ApiError(
+      503,
+      'Our chat assistant has reached its monthly limit. Please contact support@duncanfunded.com.',
+    );
+  }
+}
+
+async function recordUsage(tokensIn, tokensOut) {
+  const ym = currentYearMonth();
+  await run(
+    `INSERT INTO chat_usage ("yearMonth", "tokensIn", "tokensOut", "messageCount", "updatedAt")
+     VALUES (?, ?, ?, 1, ?)
+     ON CONFLICT ("yearMonth") DO UPDATE SET
+       "tokensIn" = chat_usage."tokensIn" + EXCLUDED."tokensIn",
+       "tokensOut" = chat_usage."tokensOut" + EXCLUDED."tokensOut",
+       "messageCount" = chat_usage."messageCount" + 1,
+       "updatedAt" = EXCLUDED."updatedAt"`,
+    [ym, Number(tokensIn) || 0, Number(tokensOut) || 0, now()],
+  );
+}
+
+// ---- Session + message persistence ----
+
+async function ensureSession(sessionId, visitorId, ipAddress, userAgent) {
+  if (sessionId) {
+    const existing = await get('SELECT * FROM chat_sessions WHERE id = ?', [sessionId]);
+    if (existing) return existing;
+  }
+  const id = sessionId || genId();
+  const ts = now();
+  await run(
+    `INSERT INTO chat_sessions (id, "visitorId", "ipAddress", "userAgent", "createdAt", "lastMessageAt")
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT (id) DO NOTHING`,
+    [id, visitorId || id, ipAddress || null, (userAgent || '').slice(0, 500), ts, ts],
+  );
+  return get('SELECT * FROM chat_sessions WHERE id = ?', [id]);
+}
+
+async function appendMessage(sessionId, role, content, tokensIn = 0, tokensOut = 0) {
+  await run(
+    `INSERT INTO chat_messages (id, "sessionId", role, content, "tokensIn", "tokensOut", "createdAt")
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [genId(), sessionId, role, content, tokensIn, tokensOut, now()],
+  );
+  await run('UPDATE chat_sessions SET "lastMessageAt" = ? WHERE id = ?', [now(), sessionId]);
+}
+
+async function loadSessionMessages(sessionId, limit) {
+  const rows = await all(
+    `SELECT role, content FROM chat_messages
+     WHERE "sessionId" = ?
+     ORDER BY "createdAt" ASC
+     LIMIT ?`,
+    [sessionId, limit],
+  );
+  // Format for Anthropic API
+  return rows.map((r) => ({ role: r.role, content: r.content }));
+}
+
+// ---- Main chat handler (non-streaming for simplicity & reliability) ----
+
+export async function chat({ sessionId, visitorId, message, ipAddress, userAgent }) {
+  if (!client) {
+    throw new ApiError(
+      503,
+      'Chat is temporarily unavailable. Please contact support@duncanfunded.com.',
+    );
+  }
+  const settings = await getSettings();
+  if (!settings.chatbot.enabled) {
+    throw new ApiError(503, 'Chat is currently disabled.');
+  }
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    throw new ApiError(400, 'message is required');
+  }
+  const trimmed = message.trim().slice(0, 2000);
+
+  await checkRateLimit(ipAddress, settings);
+  await checkMonthlyBudget(settings);
+
+  // Open or fetch the session
+  const session = await ensureSession(sessionId, visitorId, ipAddress, userAgent);
+
+  // Cap per-session message count
+  const count = await get(
+    'SELECT COUNT(*) AS n FROM chat_messages WHERE "sessionId" = ?',
+    [session.id],
+  );
+  if (Number(count.n) >= settings.chatbot.maxMessagesPerSession * 2) {
+    throw new ApiError(
+      429,
+      "This conversation has reached its length limit. Please start a new conversation.",
+    );
+  }
+
+  // Persist user message first so it shows in admin even if the API call fails
+  await appendMessage(session.id, 'user', trimmed);
+
+  // Build context for the model — system prompt + previous turns + new turn
+  const systemPrompt = await buildSystemPrompt(settings);
+  const priorMessages = await loadSessionMessages(session.id, 30);
+
+  let assistantText = '';
+  let usageIn = 0;
+  let usageOut = 0;
+  try {
+    const response = await client.messages.create({
+      model: settings.chatbot.model,
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: priorMessages, // already includes the user turn we just persisted
+    });
+    // Concatenate text blocks
+    assistantText = (response.content || [])
+      .filter((b) => b.type === 'text')
+      .map((b) => b.text)
+      .join('')
+      .trim();
+    usageIn = response.usage?.input_tokens || 0;
+    usageOut = response.usage?.output_tokens || 0;
+  } catch (e) {
+    console.error('Anthropic API error:', e.message || e);
+    throw new ApiError(
+      502,
+      'Our chat assistant is having trouble right now. Please try again in a moment or contact support@duncanfunded.com.',
+    );
+  }
+
+  if (!assistantText) assistantText = SAFE_FALLBACK;
+
+  // Compliance pass — replace whole response if banned terms detected
+  const safeText = enforceCompliance(assistantText);
+
+  await appendMessage(session.id, 'assistant', safeText, usageIn, usageOut);
+  await recordUsage(usageIn, usageOut);
+
+  return {
+    sessionId: session.id,
+    reply: safeText,
+  };
+}
+
+// ---- Admin: list and view chats ----
+
+export async function adminListSessions({ limit = 50, offset = 0 } = {}) {
+  const rows = await all(
+    `SELECT s.*,
+       (SELECT COUNT(*) FROM chat_messages m WHERE m."sessionId" = s.id) AS "messageCount",
+       (SELECT content FROM chat_messages m WHERE m."sessionId" = s.id AND m.role = 'user'
+        ORDER BY m."createdAt" ASC LIMIT 1) AS "firstUserMessage"
+     FROM chat_sessions s
+     ORDER BY s."lastMessageAt" DESC
+     LIMIT ? OFFSET ?`,
+    [Number(limit) || 50, Number(offset) || 0],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    visitorId: r.visitorId,
+    ipAddress: r.ipAddress,
+    createdAt: r.createdAt,
+    lastMessageAt: r.lastMessageAt,
+    flagged: r.flagged === true || r.flagged === 't',
+    exemplar: r.exemplar === true || r.exemplar === 't',
+    messageCount: Number(r.messageCount) || 0,
+    firstUserMessage: r.firstUserMessage || '',
+  }));
+}
+
+export async function adminGetSession(id) {
+  const session = await get('SELECT * FROM chat_sessions WHERE id = ?', [id]);
+  if (!session) throw new ApiError(404, 'Chat not found');
+  const messages = await all(
+    `SELECT id, role, content, "tokensIn", "tokensOut", "createdAt"
+     FROM chat_messages WHERE "sessionId" = ?
+     ORDER BY "createdAt" ASC`,
+    [id],
+  );
+  return {
+    id: session.id,
+    visitorId: session.visitorId,
+    ipAddress: session.ipAddress,
+    userAgent: session.userAgent,
+    createdAt: session.createdAt,
+    lastMessageAt: session.lastMessageAt,
+    flagged: session.flagged === true || session.flagged === 't',
+    exemplar: session.exemplar === true || session.exemplar === 't',
+    messages,
+  };
+}
+
+export async function adminSetFlags(id, { flagged, exemplar }) {
+  const session = await get('SELECT * FROM chat_sessions WHERE id = ?', [id]);
+  if (!session) throw new ApiError(404, 'Chat not found');
+  await run(
+    `UPDATE chat_sessions SET
+       flagged = COALESCE(?, flagged),
+       exemplar = COALESCE(?, exemplar)
+     WHERE id = ?`,
+    [
+      flagged === undefined ? null : !!flagged,
+      exemplar === undefined ? null : !!exemplar,
+      id,
+    ],
+  );
+  return adminGetSession(id);
+}
+
+export async function adminDeleteSession(id) {
+  const res = await run('DELETE FROM chat_sessions WHERE id = ?', [id]);
+  if (!res) throw new ApiError(404, 'Chat not found');
+  return { id };
+}
+
+export async function adminUsageThisMonth() {
+  const ym = currentYearMonth();
+  const row = await get(
+    'SELECT * FROM chat_usage WHERE "yearMonth" = ?',
+    [ym],
+  );
+  return {
+    yearMonth: ym,
+    tokensIn: row ? Number(row.tokensIn) : 0,
+    tokensOut: row ? Number(row.tokensOut) : 0,
+    messageCount: row ? Number(row.messageCount) : 0,
+  };
+}

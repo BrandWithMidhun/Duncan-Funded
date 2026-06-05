@@ -3,7 +3,7 @@ import './globals.css';
 import { JsonLd, organizationSchema, websiteSchema } from '@/lib/seo';
 import { SITE_URL } from '@/lib/api';
 import Analytics, { AnalyticsNoscript } from '@/components/Analytics';
-import WhatsAppButton from '@/components/WhatsAppButton';
+import ChatWidget from '@/components/ChatWidget';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -69,7 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <JsonLd data={organizationSchema()} />
         <JsonLd data={websiteSchema()} />
         {children}
-        <WhatsAppButton />
+        <ChatWidget />
         <Analytics />
       </body>
     </html>

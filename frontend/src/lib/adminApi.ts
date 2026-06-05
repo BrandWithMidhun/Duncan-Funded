@@ -201,6 +201,16 @@ export interface SiteSettings {
     whatsappPhone: string;
     whatsappMessage: string;
   };
+  chatbot: {
+    enabled: boolean;
+    model: string;
+    monthlyTokenBudget: number;
+    ratePerHour: number;
+    ratePerDay: number;
+    maxMessagesPerSession: number;
+    openingMessage: string;
+    systemExtras: string;
+  };
 }
 
 export async function getSettings(): Promise<ApiResult<{ data: SiteSettings }>> {
@@ -393,4 +403,69 @@ export async function updateProgram(
 
 export async function deleteProgram(id: string): Promise<ApiResult<{ message: string }>> {
   return authFetch<{ message: string }>(`/api/admin/programs/${id}`, { method: 'DELETE' });
+}
+
+// ---- Chats (admin) ----
+
+export interface AdminChatSession {
+  id: string;
+  visitorId: string;
+  ipAddress: string | null;
+  createdAt: string;
+  lastMessageAt: string;
+  flagged: boolean;
+  exemplar: boolean;
+  messageCount: number;
+  firstUserMessage: string;
+}
+
+export interface AdminChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  tokensIn: number;
+  tokensOut: number;
+  createdAt: string;
+}
+
+export interface AdminChatDetail extends Omit<AdminChatSession, 'messageCount' | 'firstUserMessage'> {
+  userAgent: string | null;
+  messages: AdminChatMessage[];
+}
+
+export interface AdminChatUsage {
+  yearMonth: string;
+  tokensIn: number;
+  tokensOut: number;
+  messageCount: number;
+}
+
+export async function listChats(opts: { limit?: number; offset?: number } = {}) {
+  const qs = new URLSearchParams();
+  if (opts.limit) qs.set('limit', String(opts.limit));
+  if (opts.offset) qs.set('offset', String(opts.offset));
+  const url = `/api/admin/chats${qs.toString() ? `?${qs.toString()}` : ''}`;
+  return authFetch<{ data: AdminChatSession[] }>(url);
+}
+
+export async function getChat(id: string) {
+  return authFetch<{ data: AdminChatDetail }>(`/api/admin/chats/${id}`);
+}
+
+export async function setChatFlags(
+  id: string,
+  flags: { flagged?: boolean; exemplar?: boolean },
+) {
+  return authFetch<{ data: AdminChatDetail }>(`/api/admin/chats/${id}/flags`, {
+    method: 'PUT',
+    body: JSON.stringify(flags),
+  });
+}
+
+export async function deleteChat(id: string) {
+  return authFetch<{ message: string }>(`/api/admin/chats/${id}`, { method: 'DELETE' });
+}
+
+export async function chatUsage() {
+  return authFetch<{ data: AdminChatUsage }>('/api/admin/chats/usage');
 }

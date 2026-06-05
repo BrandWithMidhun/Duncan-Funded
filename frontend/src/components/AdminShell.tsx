@@ -10,6 +10,7 @@ import {
   Search,
   Users,
   MessageSquare,
+  MessagesSquare,
   Settings,
   FileEdit,
   Package,
@@ -28,6 +29,7 @@ const adminNav = [
   { label: 'SEO', href: '/admin/seo', Icon: Search },
   { label: 'Subscribers', href: '/admin/subscribers', Icon: Users },
   { label: 'Messages', href: '/admin/messages', Icon: MessageSquare },
+  { label: 'Chats', href: '/admin/chats', Icon: MessagesSquare },
   { label: 'Settings', href: '/admin/settings', Icon: Settings },
 ];
 

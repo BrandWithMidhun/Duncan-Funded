@@ -346,6 +346,201 @@ export default function AdminSettingsPage() {
             </div>
           </section>
 
+          {/* ---- Chatbot ---- */}
+          <section>
+            <h2 className="font-display text-lg gold-text-gradient font-bold tracking-wider uppercase mb-4">
+              Chatbot
+            </h2>
+            <p className="font-body text-xs text-wool-muted mb-6 max-w-2xl">
+              AI assistant powered by Claude. Strict compliance: never provides investment
+              advice or recommends specific challenges. Requires <code className="text-gold">ANTHROPIC_API_KEY</code> set
+              in Railway backend environment.
+            </p>
+            <div className="space-y-5 max-w-2xl">
+              {/* Enabled toggle */}
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.chatbot?.enabled !== false}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      chatbot: { ...(settings.chatbot || {} as SiteSettings['chatbot']), enabled: e.target.checked },
+                    })
+                  }
+                  className="sr-only"
+                />
+                <span
+                  className={`mt-0.5 w-5 h-5 rounded-sm border flex items-center justify-center shrink-0 ${
+                    settings.chatbot?.enabled !== false
+                      ? 'bg-gradient-to-br from-gold to-gold-light border-gold'
+                      : 'border-gold/40'
+                  }`}
+                >
+                  {settings.chatbot?.enabled !== false && (
+                    <svg className="w-3.5 h-3.5 text-pine" viewBox="0 0 20 20" fill="currentColor">
+                      <path
+                        fillRule="evenodd"
+                        d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.8a1 1 0 011.4 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                </span>
+                <span className="font-body text-sm text-wool tracking-wide">
+                  Enable chatbot site-wide
+                </span>
+              </label>
+
+              <div>
+                <label className={labelClass}>Model</label>
+                <select
+                  value={settings.chatbot?.model || 'claude-haiku-4-5-20251001'}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      chatbot: { ...(settings.chatbot || {} as SiteSettings['chatbot']), model: e.target.value },
+                    })
+                  }
+                  className={inputClass}
+                >
+                  <option value="claude-haiku-4-5-20251001">
+                    Claude Haiku 4.5 (recommended — fast, low cost)
+                  </option>
+                  <option value="claude-sonnet-4-5-20250929">
+                    Claude Sonnet 4.5 (higher quality, ~3x cost)
+                  </option>
+                </select>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-5">
+                <div>
+                  <label className={labelClass}>Monthly Token Budget</label>
+                  <input
+                    type="number"
+                    value={settings.chatbot?.monthlyTokenBudget ?? 15000000}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        chatbot: {
+                          ...(settings.chatbot || {} as SiteSettings['chatbot']),
+                          monthlyTokenBudget: Number(e.target.value) || 0,
+                        },
+                      })
+                    }
+                    className={inputClass}
+                    min={0}
+                  />
+                  <p className="font-body text-xs text-wool-muted/60 mt-1.5">
+                    Tokens, not dollars. 15M ≈ $50/mo with Haiku.
+                  </p>
+                </div>
+                <div>
+                  <label className={labelClass}>Max Messages / Session</label>
+                  <input
+                    type="number"
+                    value={settings.chatbot?.maxMessagesPerSession ?? 40}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        chatbot: {
+                          ...(settings.chatbot || {} as SiteSettings['chatbot']),
+                          maxMessagesPerSession: Number(e.target.value) || 40,
+                        },
+                      })
+                    }
+                    className={inputClass}
+                    min={2}
+                  />
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-5">
+                <div>
+                  <label className={labelClass}>Rate Limit / Hour (per IP)</label>
+                  <input
+                    type="number"
+                    value={settings.chatbot?.ratePerHour ?? 20}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        chatbot: {
+                          ...(settings.chatbot || {} as SiteSettings['chatbot']),
+                          ratePerHour: Number(e.target.value) || 20,
+                        },
+                      })
+                    }
+                    className={inputClass}
+                    min={1}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Rate Limit / Day (per IP)</label>
+                  <input
+                    type="number"
+                    value={settings.chatbot?.ratePerDay ?? 100}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        chatbot: {
+                          ...(settings.chatbot || {} as SiteSettings['chatbot']),
+                          ratePerDay: Number(e.target.value) || 100,
+                        },
+                      })
+                    }
+                    className={inputClass}
+                    min={1}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className={labelClass}>Opening Message</label>
+                <textarea
+                  value={settings.chatbot?.openingMessage || ''}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      chatbot: {
+                        ...(settings.chatbot || {} as SiteSettings['chatbot']),
+                        openingMessage: e.target.value,
+                      },
+                    })
+                  }
+                  rows={3}
+                  maxLength={2000}
+                  placeholder="First message the bot shows when someone opens the chat."
+                  className={`${inputClass} resize-none`}
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>System Prompt — Extra Guidance</label>
+                <textarea
+                  value={settings.chatbot?.systemExtras || ''}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      chatbot: {
+                        ...(settings.chatbot || {} as SiteSettings['chatbot']),
+                        systemExtras: e.target.value,
+                      },
+                    })
+                  }
+                  rows={5}
+                  maxLength={8000}
+                  placeholder={'Append additional instructions for the bot. Examples:\n- "When users ask about resets, mention they can reset once per challenge."\n- "If asked about evaluation duration, say there is no time limit."'}
+                  className={`${inputClass} resize-none font-mono text-xs`}
+                />
+                <p className="font-body text-xs text-wool-muted/60 mt-1.5">
+                  Use this to teach the bot about gaps you spot when reviewing chats in{' '}
+                  <code className="text-gold">/admin/chats</code>. The compliance rules cannot be
+                  overridden here.
+                </p>
+              </div>
+            </div>
+          </section>
+
           {success && (
             <p className="font-body text-sm text-[hsl(150,60%,45%)] bg-[hsl(150,40%,15%)] border border-[hsl(150,40%,30%)] px-4 py-3 rounded-sm">
               {success}

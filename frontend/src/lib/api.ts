@@ -178,6 +178,16 @@ export interface SiteSettings {
     whatsappPhone: string;
     whatsappMessage: string;
   };
+  chatbot: {
+    enabled: boolean;
+    model: string;
+    monthlyTokenBudget: number;
+    ratePerHour: number;
+    ratePerDay: number;
+    maxMessagesPerSession: number;
+    openingMessage: string;
+    systemExtras: string;
+  };
 }
 
 // Defaults — used when the backend is unreachable so the site still renders.
@@ -203,6 +213,17 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     whatsappPhone: '',
     whatsappMessage: '',
   },
+  chatbot: {
+    enabled: true,
+    model: 'claude-haiku-4-5-20251001',
+    monthlyTokenBudget: 15_000_000,
+    ratePerHour: 20,
+    ratePerDay: 100,
+    maxMessagesPerSession: 40,
+    openingMessage:
+      "Welcome to Duncan Funded. I can answer questions about our challenges, evaluation rules, payouts, and supported platforms. I do not provide financial or investment advice. How can I help?",
+    systemExtras: '',
+  },
 };
 
 /** Fetch site settings (URLs, logo, menu, integrations). Falls back to defaults on error. */
@@ -214,11 +235,12 @@ export async function getSettings(): Promise<SiteSettings> {
     if (!res.ok) return DEFAULT_SETTINGS;
     const json = await res.json();
     const data = json.data as SiteSettings;
-    // Defensive: ensure integrations always exists even on old backend payloads.
+    // Defensive: ensure nested objects always exist even on old backend payloads.
     return {
       ...DEFAULT_SETTINGS,
       ...data,
       integrations: { ...DEFAULT_SETTINGS.integrations, ...(data.integrations || {}) },
+      chatbot: { ...DEFAULT_SETTINGS.chatbot, ...(data.chatbot || {}) },
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -371,5 +393,31 @@ export async function searchSite(q: string): Promise<SearchResults> {
     return json.data as SearchResults;
   } catch {
     return { query: q, posts: [], faqs: [], programs: [], total: 0 };
+  }
+}
+
+// ---- Chatbot ----
+
+export interface ChatReply {
+  sessionId: string;
+  reply: string;
+}
+
+export async function sendChatMessage(input: {
+  sessionId?: string;
+  visitorId: string;
+  message: string;
+}): Promise<{ ok: true; data: ChatReply } | { ok: false; error: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    const json = await res.json();
+    if (!res.ok) return { ok: false, error: json.error || `HTTP ${res.status}` };
+    return { ok: true, data: json.data as ChatReply };
+  } catch {
+    return { ok: false, error: 'Network error. Please try again.' };
   }
 }
