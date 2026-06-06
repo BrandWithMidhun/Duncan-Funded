@@ -48,6 +48,13 @@ export default function AdminChatsListPage() {
             <Link href="/admin/settings" className="text-gold underline underline-offset-2">
               Settings → Chatbot
             </Link>
+            {' '}or manage banned words in{' '}
+            <Link
+              href="/admin/chat-restrictions"
+              className="text-gold underline underline-offset-2"
+            >
+              Chat Restrictions
+            </Link>
             .
           </p>
         </div>

@@ -5,143 +5,179 @@ import { getSettings } from './settingsService.js';
 import { listPrograms } from './programService.js';
 import { getAllContent } from './contentService.js';
 import { enforceCompliance, SAFE_FALLBACK } from './chatCompliance.js';
+import { getActiveCustomPatterns } from './chatRestrictionService.js';
 
 const apiKey = process.env.ANTHROPIC_API_KEY;
 const client = apiKey ? new Anthropic({ apiKey }) : null;
 
 /**
- * Compose the system prompt. Includes:
- *   - hard compliance rules (repeated at start and end — LLMs follow
- *     instructions better when they bookend the prompt)
- *   - live programs from the DB (so admin edits show up immediately)
- *   - selected FAQ items
- *   - selected content blocks
- *   - any admin-appended "systemExtras"
+ * Compose the system prompt as TWO blocks suitable for Anthropic
+ * prompt caching:
+ *   - STATIC block: compliance rules + programs + about + admin
+ *     extras. Same across requests until admin edits something.
+ *     Marked with cache_control so Anthropic caches it (5-min TTL).
+ *   - DYNAMIC block: top-N FAQ matches scored against the user's
+ *     message. Changes per request, so not cached.
+ *
+ * Token math vs the previous version:
+ *   - Compliance rules stated ONCE (was twice) — saves ~600 tokens
+ *   - Compact program format on one line each — saves ~600 tokens
+ *   - FAQ filtered to top 6 by keyword relevance (was top 25) — saves
+ *     ~1100 tokens on average
+ *   - About paragraph trimmed to one — saves ~100 tokens
+ *   - Conversation context capped at 8 turns (was 30) elsewhere
+ *
+ * Combined effect: ~3000 -> ~1500 input tokens per request, then
+ * the static ~1200 of that is cached on every subsequent request
+ * within 5 minutes, so cache-hit cost is ~150 tokens for the static
+ * portion (10% of normal price for cached input).
  */
-async function buildSystemPrompt(settings, programs) {
+async function buildSystemPrompt(settings, programs, userMessage) {
   const content = await getAllContent();
 
-  // FAQ — pull the top 25 items, ordered by category then position
-  const faqs = await all(
-    `SELECT i.question, i.answer, c.label AS "categoryLabel"
-     FROM faq_items i JOIN faq_categories c ON c.id = i."categoryId"
-     ORDER BY c."order" ASC, i."order" ASC
-     LIMIT 25`,
-  );
-
-  // Format programs for the prompt — compact but complete
-  const programsBlock = programs
-    .map((p) => {
-      const sizes = (p.sizes || []).map((s) => `$${s.toLocaleString()}`).join(', ');
-      const prices = Object.entries(p.prices || {})
-        .map(([s, v]) => `$${Number(s).toLocaleString()}: $${v}`)
-        .join(', ');
-      return [
-        `### ${p.name}${p.popular ? ' [Popular]' : ''}`,
-        `Category: ${p.category}`,
-        `Account sizes: ${sizes || 'n/a'}`,
-        `Pricing: ${prices || 'n/a'}`,
-        `Platforms: ${(p.platforms || []).join(', ') || 'n/a'}`,
-        `Rules:`,
-        ...(p.rules || []).map((r) => `  - ${r}`),
-      ].join('\n');
-    })
-    .join('\n\n');
-
-  const faqBlock = faqs
-    .map((f) => `Q: ${f.question}\nA: ${f.answer}`)
-    .join('\n\n');
-
-  // Pull a few key content blocks for "about the firm" context
-  const aboutBlock = [
-    content['about.paragraph1'],
-    content['about.paragraph2'],
-    content['about.paragraph3'],
-  ]
-    .filter(Boolean)
-    .join('\n\n');
-
+  // ---- Compliance rules (single block, no duplication) ----
   const COMPLIANCE_RULES = `
 CRITICAL COMPLIANCE RULES — NEVER VIOLATE:
 
 1. Your name is Duncan. You are the official guide for Duncan Funded.
    If asked who you are, say: "I'm Duncan, the guide for Duncan Funded."
-   Do not call yourself an "AI assistant", a "chatbot", or "Claude".
+   Never call yourself an AI assistant, chatbot, or Claude.
 
-2. Duncan Funded sells EDUCATIONAL CHALLENGES and EVALUATION SERVICES.
-   It does NOT sell investments, securities, or financial products.
-   Refer to its offerings as "challenges", "evaluations", "programs",
-   or "accounts" — NEVER as investments.
+2. Duncan Funded sells EDUCATIONAL CHALLENGES and EVALUATION SERVICES — not
+   investments. Always refer to offerings as "challenges", "evaluations",
+   "programs", or "accounts". Never "investments".
 
-3. NEVER use these terms or any variants:
-   - invest, investment, investor, investing
-   - securities, brokerage, portfolio
-   - financial advice, financial advisor, wealth management
-   - "suitable for you", "best investment", "right for you"
-   - guaranteed returns, guaranteed profits, risk-free, sure-fire
+3. NEVER use these terms or variants: invest, investing, investment, investor,
+   securities, brokerage, portfolio, financial advice, financial advisor,
+   wealth management, "suitable for you", "best investment", "right for you",
+   guaranteed returns, guaranteed profits, risk-free, sure-fire.
 
-4. NEVER use "risk" as a marketing descriptor. Do not say "low risk",
-   "no risk", "high risk", "risky", or "low-risk option". When the
-   user asks about risk, redirect them to the specific concrete rules
-   that limit losses — drawdown limits, daily loss limits, max loss
-   limits, evaluation parameters. Discuss those rules factually
-   without labelling them as "low" or "high" anything.
+4. NEVER use "risk" as a marketing descriptor (no "low risk", "no risk",
+   "high risk", "risky"). When a user asks about risk, redirect to the
+   concrete rules that limit losses — drawdown limits, daily loss limits,
+   max loss limits — discussed factually without "low/high" labels.
 
-5. NEVER recommend a specific challenge as best for the user. You may
-   describe what each challenge offers and let the user decide. If
-   asked "which one should I pick?", describe the trade-offs neutrally
-   and suggest they review the full details on the Programs page.
+5. NEVER recommend a specific challenge as "best" or "right for the user".
+   Describe what each offers and let them decide. If asked "which should
+   I pick?", give neutral trade-offs and point to the Programs page.
 
-6. NEVER predict, project, or imply returns. Talk only about rules,
-   profit splits as defined in the program, drawdown limits, and
-   evaluation structure.
+6. NEVER predict, project, or imply returns. Only describe rules, profit
+   splits as defined, drawdown limits, and evaluation structure.
 
-7. NEVER answer questions about specific markets, trading strategies,
-   when to buy/sell anything, or how to make money trading. Politely
-   decline and redirect to evaluation-specific topics.
+7. NEVER answer questions about specific markets, trading strategies, when
+   to buy/sell anything, or "how to make money trading". Decline and
+   redirect to evaluation-specific topics.
 
 8. For ANY question about taxes, legal status, regulatory licensing,
    refunds, account suspension, or personal data: defer to
    support@duncanfunded.com. Do not invent answers.
 
-9. Use only the information in the KNOWLEDGE BASE below to answer
-   product questions. If asked something not in the knowledge base,
-   say you don't know and suggest contacting support.
+9. Use only the KNOWLEDGE BASE below. If asked something not in it, say
+   you don't know and suggest contacting support@duncanfunded.com.
+
+10. Quote numbers (prices, drawdown percentages, account sizes) EXACTLY
+    from the knowledge base. Never paraphrase or round.
 `.trim();
 
-  return [
+  // ---- Programs — compact one-liner each ----
+  const formatProgram = (p) => {
+    const sizes = Array.isArray(p.sizes) && p.sizes.length
+      ? `${Math.min(...p.sizes) >= 1000 ? '$' + Math.min(...p.sizes) / 1000 + 'K' : '$' + Math.min(...p.sizes)}-${Math.max(...p.sizes) >= 1000 ? '$' + Math.max(...p.sizes) / 1000 + 'K' : '$' + Math.max(...p.sizes)}`
+      : 'sizes n/a';
+    const prices = p.prices && Object.keys(p.prices).length
+      ? `$${Math.min(...Object.values(p.prices).map(Number))}-$${Math.max(...Object.values(p.prices).map(Number))}`
+      : 'pricing n/a';
+    const platforms = (p.platforms || []).join('/') || 'n/a';
+    const rules = (p.rules || []).join('; ') || 'no rules listed';
+    return `${p.name} (${p.category})${p.popular ? ' [POPULAR]' : ''}: ${sizes}, ${prices}. Platforms: ${platforms}. Rules: ${rules}`;
+  };
+  const programsBlock = programs.map(formatProgram).join('\n') || '(no programs configured)';
+
+  // ---- About — one paragraph only ----
+  const aboutBlock =
+    content['about.paragraph1'] ||
+    'Duncan Funded is a prop firm providing capital allocation challenges.';
+
+  // ---- Static block (cacheable) ----
+  const staticText = [
     COMPLIANCE_RULES,
     '',
     '## ABOUT DUNCAN FUNDED',
-    aboutBlock || 'Duncan Funded is a prop firm providing capital allocation challenges.',
+    aboutBlock,
     '',
-    '## PROGRAMS / CHALLENGES',
-    programsBlock || '(no programs configured)',
-    '',
-    '## FREQUENTLY ASKED QUESTIONS',
-    faqBlock || '(no FAQs configured)',
-    '',
+    '## PROGRAMS / CHALLENGES (use exact names verbatim)',
+    programsBlock,
     settings.chatbot.systemExtras
-      ? `## ADDITIONAL ADMIN GUIDANCE\n${settings.chatbot.systemExtras}`
+      ? `\n## ADMIN GUIDANCE\n${settings.chatbot.systemExtras}`
       : '',
     '',
-    '## REMINDER OF CRITICAL RULES',
-    COMPLIANCE_RULES,
-    '',
     '## RESPONSE STYLE — STRICT',
-    '- MAXIMUM 2-3 short sentences per reply. Never more unless the user explicitly asks for detail.',
-    '- NO markdown formatting at all. Do NOT use **asterisks**, _underscores_, # headings, or - bullet lines. Just plain prose.',
-    '- Quote program names exactly as they appear in the knowledge base (e.g. "Forex One Step Assessment") so they can be turned into clickable buttons.',
-    '- Be direct and confident, not chatty. No filler like "Great question!" or "I would be happy to help."',
+    '- MAXIMUM 2-3 short sentences. No exceptions unless user explicitly asks for detail.',
+    '- NO markdown. No asterisks, headings, or bullet lines. Plain prose only.',
+    '- Quote program names exactly as listed so action chips can trigger.',
+    '- Quote numeric values (drawdown %, prices, account sizes) EXACTLY.',
+    '- Be direct, no filler like "Great question!" or "I would be happy to help."',
     '',
     '## INTENT GUIDANCE',
-    '- If the user names an asset class (forex, crypto, futures, equities), mention the specific programs we offer in that category by name and tell them the details are on the Programs page.',
-    '- If the user expresses interest in starting (words like "sign up", "begin", "get funded", "apply", "start"), confirm and tell them to use the buttons below your message.',
-    '- If the user is exploring with no clear intent, ask ONE qualifying question: which asset class they trade.',
-    '- Never tell them which program is "best" or "right for them". Surface the relevant options factually and let them decide.',
+    '- If user names an asset class (forex/crypto/futures/equities), name the relevant programs by exact spelling.',
+    '- If user expresses intent to start (sign up, begin, apply, get funded), confirm and tell them to use buttons below.',
+    '- If exploring with no clear intent, ask ONE question: which asset class they trade.',
+    '- Never call any program "best" or "right for them".',
   ]
     .filter(Boolean)
     .join('\n');
+
+  // ---- Dynamic block: FAQ filtered by relevance to the user's question ----
+  const dynamicText = await buildRelevantFaqBlock(userMessage);
+
+  return { staticText, dynamicText };
+}
+
+/**
+ * Pull FAQs from the DB and score each against the user's message.
+ * Score = number of distinct ≥3-letter words from the question that
+ * appear in the FAQ question or answer (case-insensitive). Returns
+ * top 6 most relevant, or top 6 by category order if no words match.
+ *
+ * Cheaper than embeddings, deterministic, and good enough for ~50-200
+ * FAQs (your scale). Future upgrade: embeddings + cosine similarity.
+ */
+async function buildRelevantFaqBlock(userMessage) {
+  const faqs = await all(
+    `SELECT i.question, i.answer
+     FROM faq_items i JOIN faq_categories c ON c.id = i."categoryId"
+     ORDER BY c."order" ASC, i."order" ASC
+     LIMIT 100`,
+  );
+  if (faqs.length === 0) return '## FAQ\n(no FAQs configured)';
+
+  const STOP = new Set([
+    'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'how',
+    'what', 'when', 'where', 'why', 'who', 'this', 'that', 'with', 'from',
+    'have', 'has', 'will', 'your', 'our', 'about', 'into', 'they', 'them',
+  ]);
+  const tokens = String(userMessage || '')
+    .toLowerCase()
+    .match(/[a-z0-9]{3,}/g) || [];
+  const queryWords = [...new Set(tokens.filter((w) => !STOP.has(w)))];
+
+  const scored = faqs.map((f, idx) => {
+    const haystack = `${f.question} ${f.answer}`.toLowerCase();
+    let score = 0;
+    for (const w of queryWords) {
+      if (haystack.includes(w)) score += 1;
+    }
+    return { f, score, idx };
+  });
+  // If query has content words, score-then-order matters. If not (greetings,
+  // empty), keep category order so the model still sees a representative slice.
+  scored.sort((a, b) => (b.score - a.score) || (a.idx - b.idx));
+  const top = scored.slice(0, 6);
+
+  const block = top
+    .map(({ f }) => `Q: ${f.question}\nA: ${f.answer}`)
+    .join('\n\n');
+  return `## RELEVANT FAQ\n${block}`;
 }
 
 // ---- Rate limiting ----
@@ -302,26 +338,46 @@ export async function chat({ sessionId, visitorId, message, ipAddress, userAgent
   // Persist user message first so it shows in admin even if the API call fails
   await appendMessage(session.id, 'user', trimmed);
 
-  // Build context for the model — system prompt + previous turns + new turn.
-  // We fetch programs here so the same list flows into both the system
-  // prompt AND the action-chip detector below (the bug fix — programs
-  // was previously only fetched inside buildSystemPrompt and went out
-  // of scope before detectActions could see it).
+  // Build context for the model. Prompt is split into two blocks
+  // for Anthropic prompt caching:
+  //   - static (compliance + programs + about + style) — cache_control set
+  //   - dynamic (FAQ filtered to user's question) — not cached
+  // Conversation history capped at 8 turns (was 30) — enough for chat
+  // continuity, big token saving on long sessions.
   const programs = await listPrograms();
-  const systemPrompt = await buildSystemPrompt(settings, programs);
-  const priorMessages = await loadSessionMessages(session.id, 30);
+  const { staticText, dynamicText } = await buildSystemPrompt(
+    settings,
+    programs,
+    trimmed,
+  );
+  const customPatterns = await getActiveCustomPatterns();
+  const priorMessages = await loadSessionMessages(session.id, 8);
 
   let assistantText = '';
   let usageIn = 0;
   let usageOut = 0;
+  let cacheRead = 0;
+  let cacheCreate = 0;
   try {
     const response = await client.messages.create({
       model: settings.chatbot.model,
       max_tokens: 280,
-      system: systemPrompt,
-      messages: priorMessages, // already includes the user turn we just persisted
+      // System as array of blocks. The static block gets cache_control
+      // (5-min TTL ephemeral cache). Anthropic's minimum cache size is
+      // ~1024 tokens for Haiku; our static block is well above that.
+      system: [
+        {
+          type: 'text',
+          text: staticText,
+          cache_control: { type: 'ephemeral' },
+        },
+        {
+          type: 'text',
+          text: dynamicText,
+        },
+      ],
+      messages: priorMessages,
     });
-    // Concatenate text blocks
     assistantText = (response.content || [])
       .filter((b) => b.type === 'text')
       .map((b) => b.text)
@@ -329,6 +385,13 @@ export async function chat({ sessionId, visitorId, message, ipAddress, userAgent
       .trim();
     usageIn = response.usage?.input_tokens || 0;
     usageOut = response.usage?.output_tokens || 0;
+    cacheRead = response.usage?.cache_read_input_tokens || 0;
+    cacheCreate = response.usage?.cache_creation_input_tokens || 0;
+    if (cacheRead || cacheCreate) {
+      console.log(
+        `[chat] tokens in=${usageIn} out=${usageOut} cache_read=${cacheRead} cache_create=${cacheCreate}`,
+      );
+    }
   } catch (e) {
     console.error('Anthropic API error:', e.message || e);
     throw new ApiError(
@@ -339,11 +402,15 @@ export async function chat({ sessionId, visitorId, message, ipAddress, userAgent
 
   if (!assistantText) assistantText = SAFE_FALLBACK;
 
-  // Compliance pass — replace whole response if banned terms detected
-  const safeText = enforceCompliance(assistantText);
+  // Compliance pass — core patterns + admin-added custom patterns.
+  // If anything matches, the whole reply is replaced with SAFE_FALLBACK.
+  const safeText = enforceCompliance(assistantText, customPatterns);
 
-  await appendMessage(session.id, 'assistant', safeText, usageIn, usageOut);
-  await recordUsage(usageIn, usageOut);
+  // Count cached input as input for budget purposes — Anthropic still
+  // bills it, just at 10% of normal. We track total so budget caps work.
+  const totalIn = usageIn + cacheRead + cacheCreate;
+  await appendMessage(session.id, 'assistant', safeText, totalIn, usageOut);
+  await recordUsage(totalIn, usageOut);
 
   // Detect actionable elements to offer the user inline buttons.
   // Stays compliance-safe: we only surface programs Duncan already

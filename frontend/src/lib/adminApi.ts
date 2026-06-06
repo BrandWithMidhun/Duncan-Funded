@@ -469,3 +469,58 @@ export async function deleteChat(id: string) {
 export async function chatUsage() {
   return authFetch<{ data: AdminChatUsage }>('/api/admin/chats/usage');
 }
+
+// ---- Chat restrictions (admin) ----
+
+export interface CoreRestrictionPattern {
+  id: string;
+  label: string;
+  source: string;
+}
+
+export interface CustomRestriction {
+  id: string;
+  pattern: string;
+  notes: string;
+  isRegex: boolean;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RestrictionsResponse {
+  core: CoreRestrictionPattern[];
+  custom: CustomRestriction[];
+}
+
+export async function listRestrictions() {
+  return authFetch<{ data: RestrictionsResponse }>('/api/admin/chat-restrictions');
+}
+
+export async function createRestriction(input: {
+  pattern: string;
+  notes?: string;
+  isRegex?: boolean;
+  enabled?: boolean;
+}) {
+  return authFetch<{ data: CustomRestriction; message: string }>(
+    '/api/admin/chat-restrictions',
+    { method: 'POST', body: JSON.stringify(input) },
+  );
+}
+
+export async function updateRestriction(
+  id: string,
+  input: Partial<{ pattern: string; notes: string; isRegex: boolean; enabled: boolean }>,
+) {
+  return authFetch<{ data: CustomRestriction; message: string }>(
+    `/api/admin/chat-restrictions/${id}`,
+    { method: 'PUT', body: JSON.stringify(input) },
+  );
+}
+
+export async function deleteRestriction(id: string) {
+  return authFetch<{ message: string }>(`/api/admin/chat-restrictions/${id}`, {
+    method: 'DELETE',
+  });
+}

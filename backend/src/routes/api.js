@@ -10,6 +10,7 @@ import * as content from '../controllers/contentController.js';
 import * as programs from '../controllers/programController.js';
 import * as search from '../controllers/searchController.js';
 import * as chat from '../controllers/chatController.js';
+import * as restrictions from '../controllers/chatRestrictionController.js';
 import { getPublishedSlugs } from '../services/postService.js';
 
 const router = Router();
@@ -93,5 +94,11 @@ router.get('/admin/chats/usage', requireAuth, chat.usage);
 router.get('/admin/chats/:id', requireAuth, chat.getSession);
 router.put('/admin/chats/:id/flags', requireAuth, chat.setFlags);
 router.delete('/admin/chats/:id', requireAuth, chat.deleteSession);
+
+// ---- Chat restrictions (admin-editable filter words) ----
+router.get('/admin/chat-restrictions', requireAuth, restrictions.listAll);
+router.post('/admin/chat-restrictions', requireAuth, restrictions.create);
+router.put('/admin/chat-restrictions/:id', requireAuth, restrictions.update);
+router.delete('/admin/chat-restrictions/:id', requireAuth, restrictions.remove);
 
 export default router;

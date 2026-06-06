@@ -200,6 +200,17 @@ CREATE TABLE IF NOT EXISTS chat_rate_limit (
   "createdAt" TIMESTAMPTZ NOT NULL
 );
 CREATE INDEX IF NOT EXISTS chat_rate_limit_ip_idx ON chat_rate_limit("ipAddress", "createdAt" DESC);
+
+CREATE TABLE IF NOT EXISTS chat_restrictions (
+  id TEXT PRIMARY KEY,
+  pattern TEXT NOT NULL,
+  notes TEXT NOT NULL DEFAULT '',
+  "isRegex" BOOLEAN NOT NULL DEFAULT FALSE,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  "createdAt" TIMESTAMPTZ NOT NULL,
+  "updatedAt" TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS chat_restrictions_enabled_idx ON chat_restrictions(enabled);
 `;
 
 /**

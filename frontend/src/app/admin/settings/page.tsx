@@ -354,7 +354,14 @@ export default function AdminSettingsPage() {
             <p className="font-body text-xs text-wool-muted mb-6 max-w-2xl">
               AI assistant powered by Claude. Strict compliance: never provides investment
               advice or recommends specific challenges. Requires <code className="text-gold">ANTHROPIC_API_KEY</code> set
-              in Railway backend environment.
+              in Railway backend environment. Manage banned words in{' '}
+              <a
+                href="/admin/chat-restrictions"
+                className="text-gold underline underline-offset-2"
+              >
+                Chat Restrictions
+              </a>
+              .
             </p>
             <div className="space-y-5 max-w-2xl">
               {/* Enabled toggle */}
