@@ -18,8 +18,7 @@ const client = apiKey ? new Anthropic({ apiKey }) : null;
  *   - selected content blocks
  *   - any admin-appended "systemExtras"
  */
-async function buildSystemPrompt(settings) {
-  const programs = await listPrograms();
+async function buildSystemPrompt(settings, programs) {
   const content = await getAllContent();
 
   // FAQ — pull the top 25 items, ordered by category then position
@@ -303,8 +302,13 @@ export async function chat({ sessionId, visitorId, message, ipAddress, userAgent
   // Persist user message first so it shows in admin even if the API call fails
   await appendMessage(session.id, 'user', trimmed);
 
-  // Build context for the model — system prompt + previous turns + new turn
-  const systemPrompt = await buildSystemPrompt(settings);
+  // Build context for the model — system prompt + previous turns + new turn.
+  // We fetch programs here so the same list flows into both the system
+  // prompt AND the action-chip detector below (the bug fix — programs
+  // was previously only fetched inside buildSystemPrompt and went out
+  // of scope before detectActions could see it).
+  const programs = await listPrograms();
+  const systemPrompt = await buildSystemPrompt(settings, programs);
   const priorMessages = await loadSessionMessages(session.id, 30);
 
   let assistantText = '';
