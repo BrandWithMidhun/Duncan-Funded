@@ -129,11 +129,17 @@ CRITICAL COMPLIANCE RULES — NEVER VIOLATE:
     '## REMINDER OF CRITICAL RULES',
     COMPLIANCE_RULES,
     '',
-    '## RESPONSE STYLE',
-    '- Be concise. 1-4 sentences per reply unless the user asks for detail.',
-    '- Be direct and confident about what we offer.',
-    '- Markdown formatting: light bullets and **bold** are fine. No headings.',
-    '- If a user expresses interest in a program, point them to the Programs page (/programs).',
+    '## RESPONSE STYLE — STRICT',
+    '- MAXIMUM 2-3 short sentences per reply. Never more unless the user explicitly asks for detail.',
+    '- NO markdown formatting at all. Do NOT use **asterisks**, _underscores_, # headings, or - bullet lines. Just plain prose.',
+    '- Quote program names exactly as they appear in the knowledge base (e.g. "Forex One Step Assessment") so they can be turned into clickable buttons.',
+    '- Be direct and confident, not chatty. No filler like "Great question!" or "I would be happy to help."',
+    '',
+    '## INTENT GUIDANCE',
+    '- If the user names an asset class (forex, crypto, futures, equities), mention the specific programs we offer in that category by name and tell them the details are on the Programs page.',
+    '- If the user expresses interest in starting (words like "sign up", "begin", "get funded", "apply", "start"), confirm and tell them to use the buttons below your message.',
+    '- If the user is exploring with no clear intent, ask ONE qualifying question: which asset class they trade.',
+    '- Never tell them which program is "best" or "right for them". Surface the relevant options factually and let them decide.',
   ]
     .filter(Boolean)
     .join('\n');
@@ -307,7 +313,7 @@ export async function chat({ sessionId, visitorId, message, ipAddress, userAgent
   try {
     const response = await client.messages.create({
       model: settings.chatbot.model,
-      max_tokens: 1024,
+      max_tokens: 280,
       system: systemPrompt,
       messages: priorMessages, // already includes the user turn we just persisted
     });
@@ -335,10 +341,78 @@ export async function chat({ sessionId, visitorId, message, ipAddress, userAgent
   await appendMessage(session.id, 'assistant', safeText, usageIn, usageOut);
   await recordUsage(usageIn, usageOut);
 
+  // Detect actionable elements to offer the user inline buttons.
+  // Stays compliance-safe: we only surface programs Duncan already
+  // mentioned by name. We never inject "best for you" picks.
+  const actions = detectActions({
+    assistantText: safeText,
+    userMessage: trimmed,
+    programs,
+    beginChallengeUrl: settings.urls.beginChallenge,
+  });
+
   return {
     sessionId: session.id,
     reply: safeText,
+    actions,
   };
+}
+
+/**
+ * Inspect the assistant reply + the user message and build up to 3
+ * action chips. Order: program mentions first, then a single signup
+ * CTA if the user's message expresses intent to start.
+ */
+function detectActions({ assistantText, userMessage, programs, beginChallengeUrl }) {
+  const actions = [];
+  const seen = new Set();
+
+  // 1. Program mentions in the assistant text — surface them as
+  //    clickable "View Program" chips.
+  const lowerText = assistantText.toLowerCase();
+  for (const p of programs) {
+    if (seen.size >= 2) break; // cap programs at 2 so the row stays clean
+    const name = p.name.toLowerCase();
+    if (!name) continue;
+    if (lowerText.includes(name)) {
+      seen.add(p.id);
+      actions.push({
+        type: 'program',
+        label: p.name,
+        href: '/programs',
+      });
+    }
+  }
+
+  // 2. Signup intent from the user — keyword scan.
+  //    Keywords stay compliance-safe (no "invest", "buy stock", etc.).
+  const intentRe =
+    /\b(sign[- ]?up|signup|register|start (?:a |the )?challenge|begin (?:a |the )?challenge|get(?:ting)? funded|apply|join|how (?:do|can) i start|how to start|let'?s? start|i want to start|ready to start|begin my|start my)\b/i;
+  if (intentRe.test(userMessage) || intentRe.test(assistantText)) {
+    if (beginChallengeUrl) {
+      actions.push({
+        type: 'signup',
+        label: 'Start a Challenge',
+        href: beginChallengeUrl,
+        external: true,
+      });
+    }
+  }
+
+  // 3. If the assistant told them to check the Programs page but no
+  //    specific program was matched, add a generic "Browse Programs".
+  const mentionsProgramsPage = /\bprograms? page\b|\/programs\b|\bbrowse programs\b/i.test(
+    assistantText,
+  );
+  if (mentionsProgramsPage && !actions.some((a) => a.type === 'program' || a.href === '/programs')) {
+    actions.push({
+      type: 'browse',
+      label: 'Browse All Programs',
+      href: '/programs',
+    });
+  }
+
+  return actions.slice(0, 3);
 }
 
 // ---- Admin: list and view chats ----

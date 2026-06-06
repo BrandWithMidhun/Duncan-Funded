@@ -1,15 +1,23 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { X, Send, RefreshCcw } from 'lucide-react';
-import { sendChatMessage, getSettings, DEFAULT_SETTINGS, type SiteSettings } from '@/lib/api';
+import Link from 'next/link';
+import { X, Send, RefreshCcw, ArrowUpRight } from 'lucide-react';
+import {
+  sendChatMessage,
+  getSettings,
+  DEFAULT_SETTINGS,
+  type SiteSettings,
+  type ChatAction,
+} from '@/lib/api';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  actions?: ChatAction[];
 }
 
-const STORAGE_KEY = 'df.chat.v1';
+const STORAGE_KEY = 'df.chat.v2'; // bumped to drop pre-actions cache shape
 
 // Quick-reply chips shown only when no user messages exist yet. These
 // are intentionally on-brand and compliance-safe — no investment or
@@ -73,6 +81,85 @@ function DuncanAvatar({ size = 26, dim = false }: { size?: number; dim?: boolean
       >
         D
       </div>
+    </div>
+  );
+}
+
+/**
+ * Lightweight inline renderer: turns **bold** markers into <strong>,
+ * preserves newlines, and strips other simple markdown that might
+ * sneak through (single _italic_, leading bullet hyphens). Cheaper
+ * and safer for chat than pulling in a full markdown library.
+ */
+function renderInline(text: string): React.ReactNode[] {
+  if (!text) return [];
+  // Strip leading "- " or "* " on lines (bot sometimes returns bullets)
+  const cleaned = text.replace(/^[ \t]*[*\-]\s+/gm, '');
+  // Split on **bold** segments
+  const parts = cleaned.split(/(\*\*[^*\n]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong
+          key={i}
+          className="font-semibold"
+          style={{ color: 'inherit' }}
+        >
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    // Also strip stray single asterisks (e.g. *word*)
+    const stripped = part.replace(/\*([^*\n]+)\*/g, '$1');
+    return <span key={i}>{stripped}</span>;
+  });
+}
+
+/** Renders action chips below an assistant message. */
+function ActionChips({ actions }: { actions: ChatAction[] }) {
+  if (!actions || actions.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-2 ml-[34px]">
+      {actions.map((a, i) => {
+        const className =
+          'inline-flex items-center gap-1 font-body text-[11.5px] px-3 py-1.5 rounded-full transition-colors';
+        const style =
+          a.type === 'signup'
+            ? {
+                background: 'linear-gradient(135deg, #D4AF37, #F4D165)',
+                color: '#0A1418',
+              }
+            : {
+                background: 'rgba(212,175,55,0.08)',
+                border: '1px solid rgba(212,175,55,0.35)',
+                color: '#F4D165',
+              };
+        const label = (
+          <>
+            {a.label}
+            {a.external && <ArrowUpRight className="w-3 h-3" strokeWidth={2} />}
+          </>
+        );
+        if (a.external) {
+          return (
+            <a
+              key={i}
+              href={a.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={className}
+              style={style}
+            >
+              {label}
+            </a>
+          );
+        }
+        return (
+          <Link key={i} href={a.href} className={className} style={style}>
+            {label}
+          </Link>
+        );
+      })}
     </div>
   );
 }
@@ -145,7 +232,10 @@ export default function ChatWidget() {
       setState((s) => ({
         ...s,
         sessionId: res.data.sessionId,
-        messages: [...s.messages, { role: 'assistant', content: res.data.reply }],
+        messages: [
+          ...s.messages,
+          { role: 'assistant', content: res.data.reply, actions: res.data.actions || [] },
+        ],
       }));
     } else {
       setError(res.error);
@@ -278,18 +368,21 @@ export default function ChatWidget() {
                 );
               }
               return (
-                <div key={i} className="flex gap-2 items-end">
-                  <DuncanAvatar size={26} />
-                  <div
-                    className="max-w-[78%] px-3.5 py-2.5 font-body text-[13.5px] leading-relaxed whitespace-pre-wrap text-wool"
-                    style={{
-                      background: 'rgba(30,52,52,0.55)',
-                      border: '1px solid rgba(212,175,55,0.12)',
-                      borderRadius: '16px 16px 16px 4px',
-                    }}
-                  >
-                    {m.content}
+                <div key={i}>
+                  <div className="flex gap-2 items-end">
+                    <DuncanAvatar size={26} />
+                    <div
+                      className="max-w-[78%] px-3.5 py-2.5 font-body text-[13.5px] leading-relaxed whitespace-pre-wrap text-wool"
+                      style={{
+                        background: 'rgba(30,52,52,0.55)',
+                        border: '1px solid rgba(212,175,55,0.12)',
+                        borderRadius: '16px 16px 16px 4px',
+                      }}
+                    >
+                      {renderInline(m.content)}
+                    </div>
                   </div>
+                  {m.actions && m.actions.length > 0 && <ActionChips actions={m.actions} />}
                 </div>
               );
             })}

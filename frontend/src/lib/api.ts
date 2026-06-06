@@ -398,9 +398,17 @@ export async function searchSite(q: string): Promise<SearchResults> {
 
 // ---- Chatbot ----
 
+export interface ChatAction {
+  type: 'program' | 'signup' | 'browse';
+  label: string;
+  href: string;
+  external?: boolean;
+}
+
 export interface ChatReply {
   sessionId: string;
   reply: string;
+  actions: ChatAction[];
 }
 
 export async function sendChatMessage(input: {
