@@ -33,6 +33,10 @@ const BANNED_PATTERNS = [
   /\bguaranteed (?:to (?:make|earn))\b/gi,
   /\brisk[- ]free\b/gi,
   /\bsure[- ]?fire\b/gi,
+  // Risk-as-marketing framings — bot must describe drawdown rules
+  // factually, not label challenges as risky / not-risky.
+  /\b(?:low|high|minimal|no|zero)[- ]risk\b/gi,
+  /\brisky\b/gi,
 ];
 
 // The deflection a user sees when a violation is detected.

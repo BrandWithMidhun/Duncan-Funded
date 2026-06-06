@@ -44,7 +44,7 @@ const DEFAULTS = {
   chatbot_rate_per_day: '100',
   chatbot_max_messages_per_session: '40',
   chatbot_opening_message:
-    "Welcome to Duncan Funded. I can answer questions about our challenges, evaluation rules, payouts, and supported platforms. I do not provide financial or investment advice. How can I help?",
+    "Welcome. I'm Duncan — your guide to our capital funding challenges. Ask me about programs, evaluation rules, payouts, or platforms. I can't provide financial or investment advice.",
   chatbot_system_extras: '',
 };
 

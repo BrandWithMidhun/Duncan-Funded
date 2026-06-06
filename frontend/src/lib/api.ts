@@ -221,7 +221,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     ratePerDay: 100,
     maxMessagesPerSession: 40,
     openingMessage:
-      "Welcome to Duncan Funded. I can answer questions about our challenges, evaluation rules, payouts, and supported platforms. I do not provide financial or investment advice. How can I help?",
+      "Welcome. I'm Duncan — your guide to our capital funding challenges. Ask me about programs, evaluation rules, payouts, or platforms. I can't provide financial or investment advice.",
     systemExtras: '',
   },
 };
