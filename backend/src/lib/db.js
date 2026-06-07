@@ -211,6 +211,38 @@ CREATE TABLE IF NOT EXISTS chat_restrictions (
   "updatedAt" TIMESTAMPTZ NOT NULL
 );
 CREATE INDEX IF NOT EXISTS chat_restrictions_enabled_idx ON chat_restrictions(enabled);
+
+-- Login attempts — used for brute-force protection. We log every attempt
+-- (success or failure) so we can rate-limit and lock out. Rows older than
+-- 24h are periodically garbage-collected by the auth service.
+CREATE TABLE IF NOT EXISTS login_attempts (
+  id BIGSERIAL PRIMARY KEY,
+  "email" TEXT,
+  "ipAddress" TEXT,
+  success BOOLEAN NOT NULL,
+  reason TEXT,
+  "createdAt" TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS login_attempts_email_idx ON login_attempts("email", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS login_attempts_ip_idx ON login_attempts("ipAddress", "createdAt" DESC);
+
+-- Admin audit log — append-only record of write actions taken by any
+-- authenticated admin. The audit page lets us reconstruct who changed
+-- what, when. Doesn't capture the diff (would bloat the DB) — captures
+-- enough to investigate.
+CREATE TABLE IF NOT EXISTS admin_audit_log (
+  id TEXT PRIMARY KEY,
+  "userId" TEXT,
+  "userEmail" TEXT,
+  method TEXT NOT NULL,
+  path TEXT NOT NULL,
+  status INTEGER,
+  "ipAddress" TEXT,
+  "userAgent" TEXT,
+  "createdAt" TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS admin_audit_created_idx ON admin_audit_log("createdAt" DESC);
+CREATE INDEX IF NOT EXISTS admin_audit_user_idx ON admin_audit_log("userId", "createdAt" DESC);
 `;
 
 /**

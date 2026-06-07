@@ -524,3 +524,40 @@ export async function deleteRestriction(id: string) {
     method: 'DELETE',
   });
 }
+
+// ---- Audit log + login attempts (admin) ----
+
+export interface AdminAuditEntry {
+  id: string;
+  userId: string | null;
+  userEmail: string | null;
+  method: string;
+  path: string;
+  status: number | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+}
+
+export interface LoginAttemptEntry {
+  id: number;
+  email: string | null;
+  ipAddress: string | null;
+  success: boolean;
+  reason: string | null;
+  createdAt: string;
+}
+
+export async function listAudit(opts: { limit?: number; offset?: number } = {}) {
+  const qs = new URLSearchParams();
+  if (opts.limit) qs.set('limit', String(opts.limit));
+  if (opts.offset) qs.set('offset', String(opts.offset));
+  const url = `/api/admin/audit${qs.toString() ? `?${qs.toString()}` : ''}`;
+  return authFetch<{ data: AdminAuditEntry[] }>(url);
+}
+
+export async function listLoginAttempts(limit = 100) {
+  return authFetch<{ data: LoginAttemptEntry[] }>(
+    `/api/admin/audit/login-attempts?limit=${limit}`,
+  );
+}

@@ -11,9 +11,16 @@ import * as programs from '../controllers/programController.js';
 import * as search from '../controllers/searchController.js';
 import * as chat from '../controllers/chatController.js';
 import * as restrictions from '../controllers/chatRestrictionController.js';
+import * as audit from '../controllers/auditController.js';
+import { auditMiddleware } from '../services/auditService.js';
 import { getPublishedSlugs } from '../services/postService.js';
 
 const router = Router();
+
+// Mount audit middleware once — it only writes a row for authenticated
+// admin write requests (POST/PUT/PATCH/DELETE under /admin/*), so
+// applying it router-wide is cheap and safe.
+router.use(auditMiddleware());
 
 // ---- Health ----
 router.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
@@ -100,5 +107,9 @@ router.get('/admin/chat-restrictions', requireAuth, restrictions.listAll);
 router.post('/admin/chat-restrictions', requireAuth, restrictions.create);
 router.put('/admin/chat-restrictions/:id', requireAuth, restrictions.update);
 router.delete('/admin/chat-restrictions/:id', requireAuth, restrictions.remove);
+
+// ---- Admin audit log + login attempts ----
+router.get('/admin/audit', requireAuth, audit.list);
+router.get('/admin/audit/login-attempts', requireAuth, audit.recentLoginAttempts);
 
 export default router;

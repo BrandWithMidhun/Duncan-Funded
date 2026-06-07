@@ -11,6 +11,7 @@ import {
   Users,
   MessageSquare,
   MessagesSquare,
+  ShieldCheck,
   Settings,
   FileEdit,
   Package,
@@ -30,6 +31,7 @@ const adminNav = [
   { label: 'Subscribers', href: '/admin/subscribers', Icon: Users },
   { label: 'Messages', href: '/admin/messages', Icon: MessageSquare },
   { label: 'Chats', href: '/admin/chats', Icon: MessagesSquare },
+  { label: 'Audit', href: '/admin/audit', Icon: ShieldCheck },
   { label: 'Settings', href: '/admin/settings', Icon: Settings },
 ];
 
