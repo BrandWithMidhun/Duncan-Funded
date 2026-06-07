@@ -59,6 +59,7 @@ export default function MarkdownEditorInner({ value, onChange, placeholder }: Pr
         markdown={value || ''}
         onChange={onChange}
         placeholder={placeholder || 'Write your article…'}
+        className="dark-theme"
         contentEditableClassName="prose prose-invert max-w-none min-h-[400px] px-5 py-4 font-body text-[15px] leading-relaxed text-wool focus:outline-none"
         plugins={[
           // Content plugins — order doesn't matter for these
