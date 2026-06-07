@@ -1,0 +1,191 @@
+/* Brand theme overrides for MDXEditor.
+ *
+ * The library uses CSS custom properties for its visual tokens. Setting
+ * them on the .duncan-mdx-editor wrapper applies our brand palette
+ * locally without affecting other parts of the admin panel.
+ *
+ * Source variable names: https://mdxeditor.dev/editor/docs/customizing-theme
+ */
+
+.duncan-mdx-editor {
+  /* ===== Base canvas ===== */
+  --baseBg: rgba(15, 26, 31, 0.6); /* matches our pine/60 background */
+  --baseBgSubtle: rgba(30, 52, 52, 0.4);
+  --baseBgHover: rgba(212, 175, 55, 0.08);
+  --baseBgActive: rgba(212, 175, 55, 0.15);
+  --baseBorder: rgba(212, 175, 55, 0.2);
+  --baseBorderHover: rgba(212, 175, 55, 0.45);
+  --baseLine: rgba(212, 175, 55, 0.12);
+  --baseBorderFocus: rgba(244, 209, 101, 0.6);
+
+  /* ===== Text ===== */
+  --baseText: #f5f1e4;
+  --baseTextContrast: #f5f1e4;
+  --baseSolid: rgba(245, 241, 228, 0.8);
+  --baseSolidHover: #f4d165;
+
+  /* ===== Accent (gold) ===== */
+  --accentBase: rgba(212, 175, 55, 0.15);
+  --accentBgSubtle: rgba(212, 175, 55, 0.1);
+  --accentBgHover: rgba(212, 175, 55, 0.2);
+  --accentBgActive: rgba(212, 175, 55, 0.3);
+  --accentBorder: rgba(212, 175, 55, 0.4);
+  --accentBorderHover: rgba(244, 209, 101, 0.7);
+  --accentLine: rgba(212, 175, 55, 0.3);
+  --accentText: #f4d165;
+  --accentTextContrast: #0a1418;
+  --accentSolid: #d4af37;
+  --accentSolidHover: #f4d165;
+}
+
+/* ===== Toolbar ===== */
+.duncan-mdx-toolbar {
+  background: rgba(30, 52, 52, 0.4) !important;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.15) !important;
+  padding: 6px 8px !important;
+  gap: 2px !important;
+  flex-wrap: wrap !important;
+}
+
+/* Toolbar buttons (the icon buttons) */
+.duncan-mdx-editor [class*='_toolbarToggleItem'],
+.duncan-mdx-editor [class*='_toolbarButton'] {
+  color: rgba(245, 241, 228, 0.7) !important;
+  background: transparent !important;
+  border-radius: 4px !important;
+  transition: background-color 120ms ease, color 120ms ease !important;
+}
+
+.duncan-mdx-editor [class*='_toolbarToggleItem']:hover,
+.duncan-mdx-editor [class*='_toolbarButton']:hover {
+  background: rgba(212, 175, 55, 0.1) !important;
+  color: #f4d165 !important;
+}
+
+.duncan-mdx-editor [class*='_toolbarToggleItem'][data-state='on'] {
+  background: rgba(212, 175, 55, 0.2) !important;
+  color: #f4d165 !important;
+}
+
+/* Block-type dropdown (paragraph / heading 1 / etc.) */
+.duncan-mdx-editor [class*='_toolbarTrigger'],
+.duncan-mdx-editor [class*='_selectTrigger'] {
+  background: rgba(15, 26, 31, 0.7) !important;
+  border: 1px solid rgba(212, 175, 55, 0.2) !important;
+  color: rgba(245, 241, 228, 0.85) !important;
+  border-radius: 4px !important;
+  padding: 4px 10px !important;
+  font-size: 13px !important;
+}
+
+/* Separator between toolbar groups */
+.duncan-mdx-editor [class*='_separator'] {
+  background: rgba(212, 175, 55, 0.15) !important;
+  margin: 0 4px !important;
+}
+
+/* ===== Editable content area ===== */
+.duncan-mdx-editor [contenteditable] {
+  caret-color: #f4d165;
+}
+
+/* Make sure inline elements use brand colors */
+.duncan-mdx-editor .prose a {
+  color: #f4d165;
+  text-decoration: underline;
+  text-decoration-color: rgba(244, 209, 101, 0.4);
+  text-underline-offset: 2px;
+}
+
+.duncan-mdx-editor .prose a:hover {
+  text-decoration-color: #f4d165;
+}
+
+.duncan-mdx-editor .prose strong {
+  color: #f4d165;
+  font-weight: 600;
+}
+
+.duncan-mdx-editor .prose blockquote {
+  border-left: 3px solid rgba(212, 175, 55, 0.5);
+  background: rgba(212, 175, 55, 0.05);
+  padding: 8px 16px;
+  margin: 16px 0;
+  font-style: italic;
+  color: rgba(245, 241, 228, 0.85);
+}
+
+.duncan-mdx-editor .prose h1,
+.duncan-mdx-editor .prose h2,
+.duncan-mdx-editor .prose h3,
+.duncan-mdx-editor .prose h4 {
+  color: #f4d165;
+  font-family: 'Cinzel', serif;
+  letter-spacing: 0.05em;
+}
+
+.duncan-mdx-editor .prose code:not(pre code) {
+  background: rgba(212, 175, 55, 0.1);
+  color: #f4d165;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.875em;
+}
+
+.duncan-mdx-editor .prose hr {
+  border-color: rgba(212, 175, 55, 0.2);
+}
+
+/* Tables inherit prose-invert but tighten borders to match brand */
+.duncan-mdx-editor .prose table {
+  border: 1px solid rgba(212, 175, 55, 0.2);
+}
+.duncan-mdx-editor .prose th,
+.duncan-mdx-editor .prose td {
+  border-color: rgba(212, 175, 55, 0.15);
+}
+.duncan-mdx-editor .prose th {
+  background: rgba(30, 52, 52, 0.4);
+  color: #f4d165;
+}
+
+/* ===== Dialogs (link insert, image insert, etc.) ===== */
+/* These render outside the editor, so we have to target their portal */
+[class*='_dialog'] [class*='_dialogContent'],
+[role='dialog'] {
+  background: linear-gradient(180deg, #0a1418 0%, #0f1a1f 100%) !important;
+  border: 1px solid rgba(212, 175, 55, 0.25) !important;
+  color: #f5f1e4 !important;
+}
+
+[class*='_dialogTitle'] {
+  color: #f4d165 !important;
+  font-family: 'Cinzel', serif !important;
+  letter-spacing: 0.05em !important;
+}
+
+[class*='_dialog'] input[type='text'],
+[class*='_dialog'] input[type='url'] {
+  background: rgba(15, 26, 31, 0.7) !important;
+  border: 1px solid rgba(212, 175, 55, 0.25) !important;
+  color: #f5f1e4 !important;
+  border-radius: 4px !important;
+}
+
+[class*='_dialog'] input[type='text']:focus,
+[class*='_dialog'] input[type='url']:focus {
+  border-color: rgba(244, 209, 101, 0.6) !important;
+  outline: none !important;
+}
+
+[class*='_dialog'] button {
+  font-family: inherit !important;
+}
+
+/* ===== Code-block panel ===== */
+.duncan-mdx-editor pre,
+.duncan-mdx-editor .cm-editor {
+  background: rgba(10, 20, 24, 0.8) !important;
+  border: 1px solid rgba(212, 175, 55, 0.15) !important;
+  border-radius: 4px !important;
+}

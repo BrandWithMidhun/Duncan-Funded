@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { PostInput, AdminPost } from '@/lib/adminApi';
+import MarkdownEditor from './MarkdownEditor';
 
 interface Props {
   initial?: AdminPost;
@@ -127,16 +128,18 @@ export default function PostForm({ initial, onSubmit, submitLabel }: Props) {
 
       <div>
         <label htmlFor="content" className={labelClass}>
-          Content <span className="text-wool-muted/50">(Markdown supported)</span>
+          Content
         </label>
-        <textarea
-          id="content"
-          rows={16}
+        <MarkdownEditor
           value={content}
-          onChange={(e) => setContent(e.target.value)}
-          className={`${inputClass} resize-y font-mono text-sm`}
-          placeholder={'## Heading\n\nWrite your article in Markdown...'}
+          onChange={setContent}
+          placeholder="Write your article — use the toolbar for formatting, or just type."
         />
+        <p className="font-body text-[11px] text-wool-muted/60 mt-2">
+          Type freely. Keyboard shortcuts: <strong className="text-gold">Cmd/Ctrl+B</strong> bold,{' '}
+          <strong className="text-gold">Cmd/Ctrl+I</strong> italic,{' '}
+          <strong className="text-gold">Cmd/Ctrl+K</strong> link. Saved as Markdown.
+        </p>
       </div>
 
       <div className="grid sm:grid-cols-2 gap-6">
