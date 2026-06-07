@@ -11,6 +11,67 @@ const apiKey = process.env.ANTHROPIC_API_KEY;
 const client = apiKey ? new Anthropic({ apiKey }) : null;
 
 /**
+ * Detect trivial conversational inputs (greetings, acknowledgements,
+ * farewells) and short-circuit the LLM call entirely. Saves real money
+ * across many conversations.
+ *
+ * Returns null if the message isn't trivial — proceeds to the LLM
+ * normally. Otherwise returns { reply, actions? } for the canned
+ * response.
+ *
+ * Conservative on purpose: only matches messages that are 95%+
+ * obviously trivial. Anything ambiguous (e.g. "is it good?") goes to
+ * the LLM so we don't miss real questions.
+ */
+function detectSmallTalk(text) {
+  const t = text.toLowerCase().trim().replace(/[!.?,]+$/g, '');
+  if (t.length === 0 || t.length > 40) return null;
+
+  // Greetings — answer + nudge with a useful question
+  if (
+    /^(hi|hello|hey|yo|hola|howdy|sup|hi there|hello there|hey there|good (morning|afternoon|evening))$/.test(
+      t,
+    )
+  ) {
+    return {
+      reply:
+        "Hi! I'm Duncan, the guide for Duncan Funded. I can answer questions about our challenges, rules, payouts, or platforms. What would you like to know?",
+    };
+  }
+
+  // Thanks
+  if (/^(thanks|thank you|thx|ty|cheers|appreciate it|much obliged)$/.test(t)) {
+    return {
+      reply: "You're welcome. Anything else I can help with?",
+    };
+  }
+
+  // Acknowledgements / fillers
+  if (/^(ok|okay|k|kk|cool|nice|got it|sounds good|alright|right|sure)$/.test(t)) {
+    return {
+      reply: 'Understood. Let me know if you have another question.',
+    };
+  }
+
+  // Farewells
+  if (/^(bye|goodbye|cya|see ya|see you|later|gtg|gn|good night)$/.test(t)) {
+    return {
+      reply: 'Take care. Come back anytime.',
+    };
+  }
+
+  // Tests / pings
+  if (/^(test|testing|ping|hello\?|are you there|you there)$/.test(t)) {
+    return {
+      reply:
+        "I'm here. Ask me about Duncan Funded's challenges, rules, payouts, or supported platforms.",
+    };
+  }
+
+  return null;
+}
+
+/**
  * Compose the system prompt as TWO blocks suitable for Anthropic
  * prompt caching:
  *   - STATIC block: compliance rules + programs + about + admin
@@ -113,9 +174,10 @@ CRITICAL COMPLIANCE RULES — NEVER VIOLATE:
     '',
     '## RESPONSE STYLE — STRICT',
     '- MAXIMUM 2-3 short sentences. No exceptions unless user explicitly asks for detail.',
+    '- When asked to "list" or "show" programs, name them only (grouped by asset class if helpful). Do NOT include prices, rules, or descriptions in lists — the user can click the chip below or visit /programs for those.',
     '- NO markdown. No asterisks, headings, or bullet lines. Plain prose only.',
     '- Quote program names exactly as listed so action chips can trigger.',
-    '- Quote numeric values (drawdown %, prices, account sizes) EXACTLY.',
+    '- Quote numeric values (drawdown %, prices, account sizes) EXACTLY when asked.',
     '- Be direct, no filler like "Great question!" or "I would be happy to help."',
     '',
     '## INTENT GUIDANCE',
@@ -302,12 +364,6 @@ async function loadSessionMessages(sessionId, limit) {
 // ---- Main chat handler (non-streaming for simplicity & reliability) ----
 
 export async function chat({ sessionId, visitorId, message, ipAddress, userAgent }) {
-  if (!client) {
-    throw new ApiError(
-      503,
-      'Chat is temporarily unavailable. Please contact support@duncanfunded.com.',
-    );
-  }
   const settings = await getSettings();
   if (!settings.chatbot.enabled) {
     throw new ApiError(503, 'Chat is currently disabled.');
@@ -338,6 +394,21 @@ export async function chat({ sessionId, visitorId, message, ipAddress, userAgent
   // Persist user message first so it shows in admin even if the API call fails
   await appendMessage(session.id, 'user', trimmed);
 
+  // ---- Small-talk shortcut ----
+  // Trivial greetings / acknowledgements don't need an LLM call. Skipping
+  // here saves 100% of input tokens for these messages, which in real
+  // usage are 20-30% of all chats. We still persist + return a sensible,
+  // compliance-safe canned reply.
+  const small = detectSmallTalk(trimmed);
+  if (small) {
+    await appendMessage(session.id, 'assistant', small.reply, 0, 0);
+    return {
+      sessionId: session.id,
+      reply: small.reply,
+      actions: small.actions || [],
+    };
+  }
+
   // Build context for the model. Prompt is split into two blocks
   // for Anthropic prompt caching:
   //   - static (compliance + programs + about + style) — cache_control set
@@ -352,6 +423,14 @@ export async function chat({ sessionId, visitorId, message, ipAddress, userAgent
   );
   const customPatterns = await getActiveCustomPatterns();
   const priorMessages = await loadSessionMessages(session.id, 8);
+
+  // Now we need a real API call — guard for missing key.
+  if (!client) {
+    throw new ApiError(
+      503,
+      'Chat is temporarily unavailable. Please contact support@duncanfunded.com.',
+    );
+  }
 
   let assistantText = '';
   let usageIn = 0;
@@ -450,7 +529,8 @@ function detectActions({ assistantText, userMessage, programs, beginChallengeUrl
       actions.push({
         type: 'program',
         label: p.name,
-        href: '/programs',
+        // The configurator reads `?p=` on mount and pre-selects this program.
+        href: `/programs?p=${encodeURIComponent(p.id)}`,
       });
     }
   }

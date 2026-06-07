@@ -228,13 +228,45 @@ export default function ProgramsConfigurator() {
         })),
       }));
       setLivePrograms(mapped);
-      // Re-seat selection if current id isn't in the new list
-      if (!mapped.find((p) => p.id === programId)) {
-        const next = mapped[2] ?? mapped[0];
+
+      // Honour a ?p= query param if present so chat action chips
+      // can deep-link the user to the exact program they tapped.
+      // Accepts both program id and slug (defensive — server might
+      // change which one it sends in the chip href).
+      let requested: Program | undefined;
+      if (typeof window !== 'undefined') {
+        const param = new URLSearchParams(window.location.search).get('p');
+        if (param) {
+          requested =
+            mapped.find((p) => p.id === param) ||
+            mapped.find(
+              (p) => p.name.toLowerCase().replace(/\s+/g, '-') === param.toLowerCase(),
+            );
+        }
+      }
+
+      const next = requested ?? mapped.find((p) => p.id === programId) ?? mapped[2] ?? mapped[0];
+      if (next && next.id !== programId) {
         setProgramId(next.id);
         setSize(next.sizes[2] ?? next.sizes[0] ?? 0);
         setPlatform(next.platforms[0] ?? '');
         setSelectedAddons({});
+      } else if (requested) {
+        // Same id requested as already set — still reset dependent state
+        // so the user sees a clean config for the deep-linked program.
+        setSize(requested.sizes[2] ?? requested.sizes[0] ?? 0);
+        setPlatform(requested.platforms[0] ?? '');
+        setSelectedAddons({});
+      }
+
+      // If we arrived with ?p=, scroll the configurator into view so the
+      // user lands directly on the selected program.
+      if (requested && typeof window !== 'undefined') {
+        // Small delay so the layout has the live programs rendered.
+        setTimeout(() => {
+          const el = document.getElementById('configurator');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 80);
       }
     });
     return () => {
@@ -306,7 +338,7 @@ export default function ProgramsConfigurator() {
         <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
           <div className="space-y-10">
             {/* Program Type */}
-            <div>
+            <div id="configurator">
               <h2 className="font-display text-xl tracking-[0.2em] uppercase text-wool mb-4">
                 Program Type
               </h2>

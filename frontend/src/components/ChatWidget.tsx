@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { X, Send, RefreshCcw, ArrowUpRight } from 'lucide-react';
 import {
   sendChatMessage,
@@ -165,6 +166,7 @@ function ActionChips({ actions }: { actions: ChatAction[] }) {
 }
 
 export default function ChatWidget() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
   const [state, setState] = useState<PersistedState>(() => loadState());
@@ -199,6 +201,8 @@ export default function ChatWidget() {
   }, [open]);
 
   if (!settings.chatbot.enabled) return null;
+  // Chat is for visitors, not admins. Hide it across the admin portal.
+  if (pathname && pathname.startsWith('/admin')) return null;
 
   const openingMessage =
     settings.chatbot.openingMessage ||
