@@ -211,6 +211,25 @@ export interface SiteSettings {
     openingMessage: string;
     systemExtras: string;
   };
+  popups: {
+    newsletter: {
+      enabled: boolean;
+      title: string;
+      body: string;
+      buttonLabel: string;
+      delaySeconds: number;
+      scrollThreshold: number;
+      cooldownDays: number;
+    };
+    exitIntent: {
+      enabled: boolean;
+      title: string;
+      body: string;
+      ctaLabel: string;
+      ctaUrl: string;
+      cooldownDays: number;
+    };
+  };
 }
 
 export async function getSettings(): Promise<ApiResult<{ data: SiteSettings }>> {

@@ -8,12 +8,24 @@ const inputClass =
   'w-full bg-pine/60 border border-gold/20 px-4 py-3 rounded-sm font-body text-wool focus:border-gold outline-none transition';
 const labelClass = 'font-body text-xs uppercase tracking-widest text-wool-muted mb-2 block';
 
+type SettingsTab = 'urls' | 'branding' | 'menu' | 'integrations' | 'chatbot' | 'popups';
+
+const TABS: { id: SettingsTab; label: string }[] = [
+  { id: 'urls', label: 'URLs' },
+  { id: 'branding', label: 'Branding' },
+  { id: 'menu', label: 'Menu' },
+  { id: 'integrations', label: 'Integrations' },
+  { id: 'chatbot', label: 'Chatbot' },
+  { id: 'popups', label: 'Popups' },
+];
+
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [tab, setTab] = useState<SettingsTab>('urls');
 
   useEffect(() => {
     (async () => {
@@ -85,8 +97,27 @@ export default function AdminSettingsPage() {
       )}
 
       {!loading && settings && (
-        <div className="space-y-10 max-w-2xl">
+        <div className="max-w-2xl">
+          {/* Tab navigation */}
+          <div className="flex flex-wrap border-b border-gold/20 mb-8 -mx-2">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`font-body text-xs tracking-wider uppercase px-4 py-3 mx-2 transition-colors ${
+                  tab === t.id
+                    ? 'text-gold border-b-2 border-gold -mb-px'
+                    : 'text-wool-muted hover:text-wool'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-10">
           {/* Button URLs */}
+          {tab === 'urls' && (
           <section className="border border-gold/15 bg-highland/30 rounded-sm p-6">
             <h2 className="font-display text-base text-gold tracking-wider uppercase mb-4">
               Button URLs
@@ -133,8 +164,10 @@ export default function AdminSettingsPage() {
               </div>
             </div>
           </section>
+          )}
 
           {/* Logo */}
+          {tab === 'branding' && (
           <section className="border border-gold/15 bg-highland/30 rounded-sm p-6">
             <h2 className="font-display text-base text-gold tracking-wider uppercase mb-4">
               Logo
@@ -165,8 +198,10 @@ export default function AdminSettingsPage() {
               />
             )}
           </section>
+          )}
 
           {/* Menu */}
+          {tab === 'menu' && (
           <section className="border border-gold/15 bg-highland/30 rounded-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-base text-gold tracking-wider uppercase">
@@ -228,8 +263,10 @@ export default function AdminSettingsPage() {
               )}
             </div>
           </section>
+          )}
 
           {/* ---- Integrations ---- */}
+          {tab === 'integrations' && (
           <section>
             <h2 className="font-display text-lg gold-text-gradient font-bold tracking-wider uppercase mb-4">
               Integrations
@@ -345,8 +382,10 @@ export default function AdminSettingsPage() {
               </div>
             </div>
           </section>
+          )}
 
           {/* ---- Chatbot ---- */}
+          {tab === 'chatbot' && (
           <section>
             <h2 className="font-display text-lg gold-text-gradient font-bold tracking-wider uppercase mb-4">
               Chatbot
@@ -547,6 +586,11 @@ export default function AdminSettingsPage() {
               </div>
             </div>
           </section>
+          )}
+
+          {/* ---- Popups (newsletter + exit-intent) ---- */}
+          {tab === 'popups' && <PopupsSection settings={settings} setSettings={setSettings} />}
+          </div>
 
           {success && (
             <p className="font-body text-sm text-[hsl(150,60%,45%)] bg-[hsl(150,40%,15%)] border border-[hsl(150,40%,30%)] px-4 py-3 rounded-sm">
@@ -566,5 +610,253 @@ export default function AdminSettingsPage() {
         </div>
       )}
     </AdminShell>
+  );
+}
+
+// ============================================================
+// Popups section — newsletter + exit-intent
+// Both are editable here and rendered on the public site.
+// ============================================================
+
+interface PopupsSectionProps {
+  settings: SiteSettings;
+  setSettings: (s: SiteSettings) => void;
+}
+
+function PopupsSection({ settings, setSettings }: PopupsSectionProps) {
+  const popups = settings.popups || {
+    newsletter: {
+      enabled: false,
+      title: '',
+      body: '',
+      buttonLabel: 'Subscribe',
+      delaySeconds: 30,
+      scrollThreshold: 50,
+      cooldownDays: 14,
+    },
+    exitIntent: {
+      enabled: false,
+      title: '',
+      body: '',
+      ctaLabel: '',
+      ctaUrl: '',
+      cooldownDays: 30,
+    },
+  };
+
+  const setNewsletter = (patch: Partial<typeof popups.newsletter>) =>
+    setSettings({
+      ...settings,
+      popups: { ...popups, newsletter: { ...popups.newsletter, ...patch } },
+    });
+  const setExitIntent = (patch: Partial<typeof popups.exitIntent>) =>
+    setSettings({
+      ...settings,
+      popups: { ...popups, exitIntent: { ...popups.exitIntent, ...patch } },
+    });
+
+  const checkboxRow = (
+    checked: boolean,
+    onChange: (v: boolean) => void,
+    label: string,
+  ) => (
+    <label className="flex items-center gap-3 cursor-pointer">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="sr-only"
+      />
+      <span
+        className={`w-5 h-5 rounded-sm border flex items-center justify-center shrink-0 ${
+          checked
+            ? 'bg-gradient-to-br from-gold to-gold-light border-gold'
+            : 'border-gold/40'
+        }`}
+      >
+        {checked && (
+          <svg className="w-3.5 h-3.5 text-pine" viewBox="0 0 20 20" fill="currentColor">
+            <path
+              fillRule="evenodd"
+              d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.8a1 1 0 011.4 0z"
+              clipRule="evenodd"
+            />
+          </svg>
+        )}
+      </span>
+      <span className="font-body text-sm text-wool tracking-wide">{label}</span>
+    </label>
+  );
+
+  return (
+    <>
+      {/* Newsletter popup */}
+      <section className="border border-gold/15 bg-highland/30 rounded-sm p-6">
+        <h2 className="font-display text-base text-gold tracking-wider uppercase mb-2">
+          Newsletter Popup
+        </h2>
+        <p className="font-body text-xs text-wool-muted mb-5">
+          Shown after the delay OR scroll threshold, whichever first. Hidden once dismissed or
+          submitted for the cooldown period.
+        </p>
+        <div className="space-y-4">
+          {checkboxRow(
+            popups.newsletter.enabled,
+            (v) => setNewsletter({ enabled: v }),
+            'Enable newsletter popup',
+          )}
+          <div>
+            <label className={labelClass}>Title</label>
+            <input
+              type="text"
+              value={popups.newsletter.title}
+              onChange={(e) => setNewsletter({ title: e.target.value })}
+              className={inputClass}
+              maxLength={120}
+              placeholder="Join the brief"
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Body</label>
+            <textarea
+              value={popups.newsletter.body}
+              onChange={(e) => setNewsletter({ body: e.target.value })}
+              rows={3}
+              maxLength={500}
+              className={`${inputClass} resize-none`}
+              placeholder="Subscribe for evaluation insights, payout news, and platform updates."
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Button Label</label>
+            <input
+              type="text"
+              value={popups.newsletter.buttonLabel}
+              onChange={(e) => setNewsletter({ buttonLabel: e.target.value })}
+              className={inputClass}
+              maxLength={40}
+            />
+          </div>
+          <div className="grid sm:grid-cols-3 gap-4">
+            <div>
+              <label className={labelClass}>Delay (sec)</label>
+              <input
+                type="number"
+                value={popups.newsletter.delaySeconds}
+                onChange={(e) =>
+                  setNewsletter({ delaySeconds: Number(e.target.value) || 30 })
+                }
+                className={inputClass}
+                min={3}
+                max={600}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Scroll %</label>
+              <input
+                type="number"
+                value={popups.newsletter.scrollThreshold}
+                onChange={(e) =>
+                  setNewsletter({ scrollThreshold: Number(e.target.value) || 50 })
+                }
+                className={inputClass}
+                min={10}
+                max={100}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Cooldown (days)</label>
+              <input
+                type="number"
+                value={popups.newsletter.cooldownDays}
+                onChange={(e) =>
+                  setNewsletter({ cooldownDays: Number(e.target.value) || 14 })
+                }
+                className={inputClass}
+                min={0}
+                max={365}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Exit-intent popup */}
+      <section className="border border-gold/15 bg-highland/30 rounded-sm p-6">
+        <h2 className="font-display text-base text-gold tracking-wider uppercase mb-2">
+          Exit-Intent Popup
+        </h2>
+        <p className="font-body text-xs text-wool-muted mb-5">
+          Desktop only. Triggers once when the visitor's cursor leaves the top of the viewport.
+          Cooled down per visitor after dismissal.
+        </p>
+        <div className="space-y-4">
+          {checkboxRow(
+            popups.exitIntent.enabled,
+            (v) => setExitIntent({ enabled: v }),
+            'Enable exit-intent popup',
+          )}
+          <div>
+            <label className={labelClass}>Title</label>
+            <input
+              type="text"
+              value={popups.exitIntent.title}
+              onChange={(e) => setExitIntent({ title: e.target.value })}
+              className={inputClass}
+              maxLength={120}
+              placeholder="Before you go…"
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Body</label>
+            <textarea
+              value={popups.exitIntent.body}
+              onChange={(e) => setExitIntent({ body: e.target.value })}
+              rows={3}
+              maxLength={500}
+              className={`${inputClass} resize-none`}
+              placeholder="Take a look at our funded challenges before you leave."
+            />
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>CTA Label</label>
+              <input
+                type="text"
+                value={popups.exitIntent.ctaLabel}
+                onChange={(e) => setExitIntent({ ctaLabel: e.target.value })}
+                className={inputClass}
+                maxLength={60}
+                placeholder="See programs"
+              />
+            </div>
+            <div>
+              <label className={labelClass}>CTA URL</label>
+              <input
+                type="text"
+                value={popups.exitIntent.ctaUrl}
+                onChange={(e) => setExitIntent({ ctaUrl: e.target.value })}
+                className={inputClass}
+                maxLength={500}
+                placeholder="/programs"
+              />
+            </div>
+          </div>
+          <div>
+            <label className={labelClass}>Cooldown (days)</label>
+            <input
+              type="number"
+              value={popups.exitIntent.cooldownDays}
+              onChange={(e) =>
+                setExitIntent({ cooldownDays: Number(e.target.value) || 30 })
+              }
+              className={inputClass}
+              min={0}
+              max={365}
+            />
+          </div>
+        </div>
+      </section>
+    </>
   );
 }

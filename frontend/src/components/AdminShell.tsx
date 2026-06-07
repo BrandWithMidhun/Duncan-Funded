@@ -18,22 +18,96 @@ import {
   Menu,
   X,
   LogOut,
+  ChevronRight,
+  Plus,
+  List,
+  ScrollText,
+  KeyRound,
+  Ban,
 } from 'lucide-react';
 import { fetchMe, logout, getToken, type AdminUser } from '@/lib/adminApi';
 
-const adminNav = [
+const adminNav: NavItem[] = [
   { label: 'Dashboard', href: '/admin', Icon: LayoutDashboard },
   { label: 'Content', href: '/admin/content', Icon: FileEdit },
-  { label: 'Programs', href: '/admin/programs', Icon: Package },
-  { label: 'Posts', href: '/admin/posts', Icon: FileText },
+  {
+    label: 'Programs',
+    href: '/admin/programs',
+    Icon: Package,
+    children: [
+      { label: 'All Programs', href: '/admin/programs', Icon: List },
+      { label: 'New Program', href: '/admin/programs/new', Icon: Plus },
+    ],
+  },
+  {
+    label: 'Posts',
+    href: '/admin/posts',
+    Icon: FileText,
+    children: [
+      { label: 'All Posts', href: '/admin/posts', Icon: List },
+      { label: 'New Post', href: '/admin/posts/new', Icon: Plus },
+    ],
+  },
   { label: 'FAQ', href: '/admin/faq', Icon: HelpCircle },
   { label: 'SEO', href: '/admin/seo', Icon: Search },
   { label: 'Subscribers', href: '/admin/subscribers', Icon: Users },
   { label: 'Messages', href: '/admin/messages', Icon: MessageSquare },
-  { label: 'Chats', href: '/admin/chats', Icon: MessagesSquare },
-  { label: 'Audit', href: '/admin/audit', Icon: ShieldCheck },
+  {
+    label: 'Chats',
+    href: '/admin/chats',
+    Icon: MessagesSquare,
+    children: [
+      { label: 'Conversations', href: '/admin/chats', Icon: MessagesSquare },
+      { label: 'Restrictions', href: '/admin/chat-restrictions', Icon: Ban },
+    ],
+  },
+  {
+    label: 'Audit',
+    href: '/admin/audit',
+    Icon: ShieldCheck,
+    children: [
+      { label: 'Actions', href: '/admin/audit', Icon: ScrollText },
+      { label: 'Login Attempts', href: '/admin/audit?tab=logins', Icon: KeyRound },
+    ],
+  },
   { label: 'Settings', href: '/admin/settings', Icon: Settings },
 ];
+
+type IconType = typeof LayoutDashboard;
+interface NavChild {
+  label: string;
+  href: string;
+  Icon: IconType;
+}
+interface NavItem {
+  label: string;
+  href: string;
+  Icon: IconType;
+  children?: NavChild[];
+}
+
+// localStorage key for remembering manual collapse state per parent.
+// Children of an item we're currently navigating into auto-expand
+// regardless; this is for everything else.
+const COLLAPSE_KEY = 'df.admin.nav.collapsed';
+
+function loadCollapsed(): Record<string, boolean> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(COLLAPSE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+function saveCollapsed(state: Record<string, boolean>) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(COLLAPSE_KEY, JSON.stringify(state));
+  } catch {
+    /* ignore quota */
+  }
+}
 
 /**
  * Wraps every authenticated admin page. Verifies the session on mount,
@@ -87,28 +161,118 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     );
   }
 
-  const NavList = ({ collapsed = false }: { collapsed?: boolean }) => (
-    <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-      {adminNav.map((item) => {
-        const isActive =
-          item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-sm font-body text-sm tracking-wide transition-all ${
-              isActive
-                ? 'bg-gold/10 text-gold border-l-2 border-gold pl-[10px]'
-                : 'text-wool-muted hover:text-gold hover:bg-gold/5'
-            }`}
-          >
-            <item.Icon className="w-4 h-4 shrink-0" strokeWidth={1.5} />
-            {!collapsed && <span>{item.label}</span>}
-          </Link>
-        );
-      })}
-    </nav>
-  );
+  const NavList = ({ collapsed = false }: { collapsed?: boolean }) => {
+    const [manualCollapsed, setManualCollapsed] = useState<Record<string, boolean>>({});
+
+    // Load saved state once on mount
+    useEffect(() => {
+      setManualCollapsed(loadCollapsed());
+    }, []);
+
+    const isOnChild = (item: NavItem) =>
+      !!item.children?.some((c) => pathname.startsWith(c.href.split('?')[0]));
+
+    const isParentActive = (item: NavItem) =>
+      item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href);
+
+    // A parent's sub-menu is open if:
+    //   - the user manually toggled it open (manualCollapsed[href] === false)
+    //   - OR we're currently on one of its children (auto-expand)
+    // Manual collapse always wins over auto-expand IF the user explicitly
+    // collapsed it during this session.
+    const isExpanded = (item: NavItem) => {
+      if (!item.children) return false;
+      const manual = manualCollapsed[item.href];
+      if (manual === false) return true; // explicit open
+      if (manual === true) return false; // explicit close
+      return isParentActive(item) || isOnChild(item); // default: auto by route
+    };
+
+    const toggleExpand = (href: string, currentlyOpen: boolean) => {
+      const next = { ...manualCollapsed, [href]: currentlyOpen };
+      setManualCollapsed(next);
+      saveCollapsed(next);
+    };
+
+    return (
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        {adminNav.map((item) => {
+          const active = isParentActive(item);
+          const hasChildren = !!item.children?.length;
+          const expanded = hasChildren && isExpanded(item);
+
+          return (
+            <div key={item.href}>
+              <div
+                className={`group flex items-center rounded-sm font-body text-sm tracking-wide transition-all ${
+                  active && !isOnChild(item)
+                    ? 'bg-gold/10 text-gold border-l-2 border-gold'
+                    : 'text-wool-muted hover:text-gold hover:bg-gold/5 border-l-2 border-transparent'
+                }`}
+              >
+                <Link
+                  href={item.href}
+                  className="flex-1 flex items-center gap-3 px-3 py-2.5 min-w-0"
+                  onClick={() => {
+                    // Clicking the parent label also opens its sub-menu
+                    if (hasChildren && !expanded) toggleExpand(item.href, false);
+                  }}
+                >
+                  <item.Icon className="w-4 h-4 shrink-0" strokeWidth={1.5} />
+                  {!collapsed && <span className="truncate">{item.label}</span>}
+                </Link>
+                {hasChildren && !collapsed && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleExpand(item.href, expanded);
+                    }}
+                    aria-label={expanded ? 'Collapse menu' : 'Expand menu'}
+                    aria-expanded={expanded}
+                    className="px-2 py-2 text-wool-muted/60 hover:text-gold"
+                  >
+                    <ChevronRight
+                      className={`w-3.5 h-3.5 transition-transform ${
+                        expanded ? 'rotate-90' : ''
+                      }`}
+                      strokeWidth={2}
+                    />
+                  </button>
+                )}
+              </div>
+
+              {/* Sub-menu */}
+              {hasChildren && expanded && !collapsed && (
+                <div className="mt-0.5 mb-1.5 ml-4 pl-3 border-l border-gold/15 space-y-0.5">
+                  {item.children!.map((child) => {
+                    const childActive =
+                      pathname === child.href.split('?')[0] ||
+                      (child.href.includes('?') && pathname + '?' === child.href.split('?')[0] + '?');
+                    return (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-sm font-body text-xs tracking-wide transition-all ${
+                          childActive
+                            ? 'text-gold bg-gold/8'
+                            : 'text-wool-muted/80 hover:text-gold hover:bg-gold/5'
+                        }`}
+                      >
+                        <child.Icon className="w-3 h-3 shrink-0" strokeWidth={1.5} />
+                        <span className="truncate">{child.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </nav>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-pine flex">

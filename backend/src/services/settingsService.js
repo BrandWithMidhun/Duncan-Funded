@@ -46,6 +46,22 @@ const DEFAULTS = {
   chatbot_opening_message:
     "Welcome. I'm Duncan — your guide to our capital funding challenges. Ask me about programs, evaluation rules, payouts, or platforms. I can't provide financial or investment advice.",
   chatbot_system_extras: '',
+  // ---- Popups (newsletter + exit-intent) ----
+  popup_newsletter_enabled: 'false',
+  popup_newsletter_title: 'Join the brief',
+  popup_newsletter_body:
+    "Get evaluation updates, payout news, and platform announcements. No spam, unsubscribe anytime.",
+  popup_newsletter_button_label: 'Subscribe',
+  popup_newsletter_delay_seconds: '30',
+  popup_newsletter_scroll_threshold: '50',
+  popup_newsletter_cooldown_days: '14',
+  popup_exit_intent_enabled: 'false',
+  popup_exit_intent_title: 'Before you go…',
+  popup_exit_intent_body:
+    "Take a look at our funded challenges. There's no pressure — we'll be here when you're ready.",
+  popup_exit_intent_cta_label: 'See Programs',
+  popup_exit_intent_cta_url: '/programs',
+  popup_exit_intent_cooldown_days: '30',
 };
 
 /** Ensure the settings table exists (called from initDb's schema, but safe here too). */
@@ -102,6 +118,25 @@ export async function getSettings() {
       maxMessagesPerSession: Number(merged.chatbot_max_messages_per_session) || 40,
       openingMessage: merged.chatbot_opening_message || '',
       systemExtras: merged.chatbot_system_extras || '',
+    },
+    popups: {
+      newsletter: {
+        enabled: merged.popup_newsletter_enabled === 'true',
+        title: merged.popup_newsletter_title || '',
+        body: merged.popup_newsletter_body || '',
+        buttonLabel: merged.popup_newsletter_button_label || 'Subscribe',
+        delaySeconds: Number(merged.popup_newsletter_delay_seconds) || 30,
+        scrollThreshold: Number(merged.popup_newsletter_scroll_threshold) || 50,
+        cooldownDays: Number(merged.popup_newsletter_cooldown_days) || 14,
+      },
+      exitIntent: {
+        enabled: merged.popup_exit_intent_enabled === 'true',
+        title: merged.popup_exit_intent_title || '',
+        body: merged.popup_exit_intent_body || '',
+        ctaLabel: merged.popup_exit_intent_cta_label || '',
+        ctaUrl: merged.popup_exit_intent_cta_url || '',
+        cooldownDays: Number(merged.popup_exit_intent_cooldown_days) || 30,
+      },
     },
   };
 }
@@ -189,6 +224,47 @@ export async function updateSettings(input) {
     }
     if (typeof cb.systemExtras === 'string') {
       updates.chatbot_system_extras = cb.systemExtras.trim().slice(0, 8000);
+    }
+  }
+
+  if (input.popups) {
+    const p = input.popups;
+    if (p.newsletter) {
+      const n = p.newsletter;
+      if (n.enabled !== undefined) updates.popup_newsletter_enabled = n.enabled ? 'true' : 'false';
+      if (typeof n.title === 'string') updates.popup_newsletter_title = n.title.trim().slice(0, 200);
+      if (typeof n.body === 'string') updates.popup_newsletter_body = n.body.trim().slice(0, 1000);
+      if (typeof n.buttonLabel === 'string')
+        updates.popup_newsletter_button_label = n.buttonLabel.trim().slice(0, 60);
+      if (n.delaySeconds !== undefined) {
+        const v = Math.max(3, Math.min(600, Number(n.delaySeconds) || 30));
+        updates.popup_newsletter_delay_seconds = String(v);
+      }
+      if (n.scrollThreshold !== undefined) {
+        const v = Math.max(10, Math.min(100, Number(n.scrollThreshold) || 50));
+        updates.popup_newsletter_scroll_threshold = String(v);
+      }
+      if (n.cooldownDays !== undefined) {
+        const v = Math.max(0, Math.min(365, Number(n.cooldownDays) || 14));
+        updates.popup_newsletter_cooldown_days = String(v);
+      }
+    }
+    if (p.exitIntent) {
+      const e = p.exitIntent;
+      if (e.enabled !== undefined)
+        updates.popup_exit_intent_enabled = e.enabled ? 'true' : 'false';
+      if (typeof e.title === 'string')
+        updates.popup_exit_intent_title = e.title.trim().slice(0, 200);
+      if (typeof e.body === 'string')
+        updates.popup_exit_intent_body = e.body.trim().slice(0, 1000);
+      if (typeof e.ctaLabel === 'string')
+        updates.popup_exit_intent_cta_label = e.ctaLabel.trim().slice(0, 80);
+      if (typeof e.ctaUrl === 'string')
+        updates.popup_exit_intent_cta_url = e.ctaUrl.trim().slice(0, 500);
+      if (e.cooldownDays !== undefined) {
+        const v = Math.max(0, Math.min(365, Number(e.cooldownDays) || 30));
+        updates.popup_exit_intent_cooldown_days = String(v);
+      }
     }
   }
 

@@ -188,6 +188,25 @@ export interface SiteSettings {
     openingMessage: string;
     systemExtras: string;
   };
+  popups: {
+    newsletter: {
+      enabled: boolean;
+      title: string;
+      body: string;
+      buttonLabel: string;
+      delaySeconds: number;
+      scrollThreshold: number;
+      cooldownDays: number;
+    };
+    exitIntent: {
+      enabled: boolean;
+      title: string;
+      body: string;
+      ctaLabel: string;
+      ctaUrl: string;
+      cooldownDays: number;
+    };
+  };
 }
 
 // Defaults — used when the backend is unreachable so the site still renders.
@@ -224,6 +243,25 @@ export const DEFAULT_SETTINGS: SiteSettings = {
       "Welcome. I'm Duncan — your guide to our capital funding challenges. Ask me about programs, evaluation rules, payouts, or platforms. I can't provide financial or investment advice.",
     systemExtras: '',
   },
+  popups: {
+    newsletter: {
+      enabled: false,
+      title: 'Join the brief',
+      body: 'Get evaluation updates, payout news, and platform announcements.',
+      buttonLabel: 'Subscribe',
+      delaySeconds: 30,
+      scrollThreshold: 50,
+      cooldownDays: 14,
+    },
+    exitIntent: {
+      enabled: false,
+      title: 'Before you go…',
+      body: 'Take a look at our funded challenges.',
+      ctaLabel: 'See Programs',
+      ctaUrl: '/programs',
+      cooldownDays: 30,
+    },
+  },
 };
 
 /** Fetch site settings (URLs, logo, menu, integrations). Falls back to defaults on error. */
@@ -241,6 +279,16 @@ export async function getSettings(): Promise<SiteSettings> {
       ...data,
       integrations: { ...DEFAULT_SETTINGS.integrations, ...(data.integrations || {}) },
       chatbot: { ...DEFAULT_SETTINGS.chatbot, ...(data.chatbot || {}) },
+      popups: {
+        newsletter: {
+          ...DEFAULT_SETTINGS.popups.newsletter,
+          ...((data.popups && data.popups.newsletter) || {}),
+        },
+        exitIntent: {
+          ...DEFAULT_SETTINGS.popups.exitIntent,
+          ...((data.popups && data.popups.exitIntent) || {}),
+        },
+      },
     };
   } catch {
     return DEFAULT_SETTINGS;
