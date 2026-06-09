@@ -135,7 +135,9 @@ export default function AdminChatDetailPage() {
                   className={`max-w-[85%] px-4 py-3 rounded-sm font-body text-sm leading-relaxed whitespace-pre-wrap ${
                     m.role === 'user'
                       ? 'bg-gradient-to-br from-gold to-gold-light text-pine'
-                      : 'bg-highland/60 text-wool border border-gold/15'
+                      : m.filteredBy
+                        ? 'bg-heritage/10 text-wool border border-heritage/40'
+                        : 'bg-highland/60 text-wool border border-gold/15'
                   }`}
                 >
                   {m.content}
@@ -149,6 +151,34 @@ export default function AdminChatDetailPage() {
                       <> · {m.tokensIn}/{m.tokensOut} tok</>
                     ) : null}
                   </div>
+                  {m.filteredBy && (
+                    <details className="mt-2 -mx-1 px-3 py-2 rounded-sm bg-heritage/15 border border-heritage/30 font-body text-xs text-heritage">
+                      <summary className="cursor-pointer font-display tracking-wider uppercase text-[10px] select-none">
+                        ⚠ Filtered by {m.filteredBy} — click to see original
+                      </summary>
+                      {m.filteredOriginal ? (
+                        <div className="mt-2 pt-2 border-t border-heritage/20">
+                          <p className="font-body text-[10px] tracking-wider uppercase text-wool-muted mb-1.5">
+                            Original (NOT shown to visitor)
+                          </p>
+                          <div className="font-body text-sm text-wool whitespace-pre-wrap leading-relaxed">
+                            {m.filteredOriginal}
+                          </div>
+                          <p className="mt-2 font-accent italic text-[11px] text-wool-muted/70">
+                            If this was a legitimate answer that was over-blocked,
+                            edit the matching pattern in{' '}
+                            <a
+                              href="/admin/chat-restrictions"
+                              className="underline text-gold hover:text-gold-light"
+                            >
+                              Chat Restrictions
+                            </a>{' '}
+                            or report so the core list can be tuned.
+                          </p>
+                        </div>
+                      ) : null}
+                    </details>
+                  )}
                 </div>
               </div>
             ))}

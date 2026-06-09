@@ -290,6 +290,23 @@ function toPgParams(sql) {
 /** Initialise the database — creates tables if they do not exist. */
 export async function initDb() {
   await pool.query(SCHEMA);
+  // Idempotent column-additions (safe to run on every boot).
+  // Each is wrapped so we never crash on existing-column errors.
+  const MIGRATIONS = [
+    // Compliance diagnostics on assistant messages — added Jun 2026.
+    `ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS filtered_by TEXT`,
+    `ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS filtered_original TEXT`,
+  ];
+  for (const stmt of MIGRATIONS) {
+    try {
+      await pool.query(stmt);
+    } catch (e) {
+      // Postgres < 9.6 doesn't support IF NOT EXISTS on ADD COLUMN; we'd
+      // see a 'column already exists' error there. Either way, log and
+      // continue — these are non-essential diagnostic columns.
+      console.warn('migration warning:', e.message || e);
+    }
+  }
   return pool;
 }
 

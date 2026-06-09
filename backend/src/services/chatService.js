@@ -4,7 +4,7 @@ import { ApiError, genId, now } from '../lib/helpers.js';
 import { getSettings } from './settingsService.js';
 import { listPrograms } from './programService.js';
 import { getAllContent } from './contentService.js';
-import { enforceCompliance, SAFE_FALLBACK } from './chatCompliance.js';
+import { enforceCompliance, SAFE_FALLBACK, analyzeText } from './chatCompliance.js';
 import { getActiveCustomPatterns } from './chatRestrictionService.js';
 
 const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -108,22 +108,32 @@ CRITICAL COMPLIANCE RULES — NEVER VIOLATE:
    investments. Always refer to offerings as "challenges", "evaluations",
    "programs", or "accounts". Never "investments".
 
-3. NEVER use these terms or variants: invest, investing, investment, investor,
-   securities, brokerage, portfolio, financial advice, financial advisor,
-   wealth management, "suitable for you", "best investment", "right for you",
-   guaranteed returns, guaranteed profits, risk-free, sure-fire.
+3. Refer to Duncan Funded's offerings as "challenges", "evaluations",
+   "programs", or "accounts" — not as "investments". You may use words
+   like "invest" or "portfolio" in their everyday senses when context
+   demands ("invest your time in practice", "your trading portfolio")
+   but never frame our challenges themselves as investment vehicles
+   or securities. Do not use "financial advice", "financial advisor",
+   or "wealth management" framings — Duncan is a guide, not an advisor.
 
-4. NEVER use "risk" as a marketing descriptor (no "low risk", "no risk",
-   "high risk", "risky"). When a user asks about risk, redirect to the
-   concrete rules that limit losses — drawdown limits, daily loss limits,
-   max loss limits — discussed factually without "low/high" labels.
+4. Discuss risk factually using our concrete rules — drawdown limits,
+   daily loss limits, max loss limits — rather than as a marketing
+   claim. Do NOT say things like "low-risk", "no-risk", "minimal-risk"
+   about our offerings. You CAN describe markets descriptively ("crypto
+   markets are more volatile than majors") — that's information, not
+   marketing.
 
-5. NEVER recommend a specific challenge as "best" or "right for the user".
-   Describe what each offers and let them decide. If asked "which should
-   I pick?", give neutral trade-offs and point to the Programs page.
+5. NEVER recommend a specific challenge as "best/right/suitable for the
+   user". Describe what each offers and let them decide. If asked
+   "which should I pick?", give neutral trade-offs and point to the
+   Programs page. Phrases like "best for you", "right for your goals",
+   "ideal challenge for you" are off-limits — they imply suitability
+   assessment we are not licensed to perform.
 
-6. NEVER predict, project, or imply returns. Only describe rules, profit
-   splits as defined, drawdown limits, and evaluation structure.
+6. NEVER predict, project, or guarantee returns/profits/income. Only
+   describe rules, profit splits as defined, drawdown limits, and
+   evaluation structure. Phrases like "guaranteed profits", "guaranteed
+   returns", "risk-free" are off-limits.
 
 7. NEVER answer questions about specific markets, trading strategies, when
    to buy/sell anything, or "how to make money trading". Decline and
@@ -340,11 +350,35 @@ async function ensureSession(sessionId, visitorId, ipAddress, userAgent) {
   return get('SELECT * FROM chat_sessions WHERE id = ?', [id]);
 }
 
-async function appendMessage(sessionId, role, content, tokensIn = 0, tokensOut = 0) {
+async function appendMessage(
+  sessionId,
+  role,
+  content,
+  tokensIn = 0,
+  tokensOut = 0,
+  filterDiagnostics = null,
+) {
+  // filterDiagnostics is null when nothing was filtered, OR an object
+  // { patternId, originalText } when the compliance filter fired.
+  // We store both fields on the row so admins can investigate later.
+  const filteredBy = filterDiagnostics?.patternId || null;
+  const filteredOriginal = filterDiagnostics?.originalText || null;
   await run(
-    `INSERT INTO chat_messages (id, "sessionId", role, content, "tokensIn", "tokensOut", "createdAt")
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [genId(), sessionId, role, content, tokensIn, tokensOut, now()],
+    `INSERT INTO chat_messages
+       (id, "sessionId", role, content, "tokensIn", "tokensOut",
+        filtered_by, filtered_original, "createdAt")
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      genId(),
+      sessionId,
+      role,
+      content,
+      tokensIn,
+      tokensOut,
+      filteredBy,
+      filteredOriginal,
+      now(),
+    ],
   );
   await run('UPDATE chat_sessions SET "lastMessageAt" = ? WHERE id = ?', [now(), sessionId]);
 }
@@ -482,13 +516,30 @@ export async function chat({ sessionId, visitorId, message, ipAddress, userAgent
   if (!assistantText) assistantText = SAFE_FALLBACK;
 
   // Compliance pass — core patterns + admin-added custom patterns.
-  // If anything matches, the whole reply is replaced with SAFE_FALLBACK.
-  const safeText = enforceCompliance(assistantText, customPatterns);
+  // analyzeText returns diagnostics so we can record WHICH pattern
+  // tripped if any did. This lets admins see in /admin/chats which
+  // responses were filtered and tune patterns accordingly.
+  const analysis = analyzeText(assistantText, customPatterns);
+  const safeText = analysis.blocked ? SAFE_FALLBACK : assistantText;
+  if (analysis.blocked) {
+    console.warn(
+      `[compliance] response blocked by ${analysis.pattern.id} (${analysis.pattern.kind}). match: "${analysis.match}"`,
+    );
+  }
 
   // Count cached input as input for budget purposes — Anthropic still
   // bills it, just at 10% of normal. We track total so budget caps work.
   const totalIn = usageIn + cacheRead + cacheCreate;
-  await appendMessage(session.id, 'assistant', safeText, totalIn, usageOut);
+  await appendMessage(
+    session.id,
+    'assistant',
+    safeText,
+    totalIn,
+    usageOut,
+    analysis.blocked
+      ? { patternId: analysis.pattern.id, originalText: assistantText }
+      : null,
+  );
   await recordUsage(totalIn, usageOut);
 
   // Detect actionable elements to offer the user inline buttons.
@@ -595,12 +646,24 @@ export async function adminListSessions({ limit = 50, offset = 0 } = {}) {
 export async function adminGetSession(id) {
   const session = await get('SELECT * FROM chat_sessions WHERE id = ?', [id]);
   if (!session) throw new ApiError(404, 'Chat not found');
-  const messages = await all(
-    `SELECT id, role, content, "tokensIn", "tokensOut", "createdAt"
+  const rows = await all(
+    `SELECT id, role, content, "tokensIn", "tokensOut",
+            filtered_by, filtered_original, "createdAt"
      FROM chat_messages WHERE "sessionId" = ?
      ORDER BY "createdAt" ASC`,
     [id],
   );
+  // Surface the diagnostics fields camelCased for the API
+  const messages = rows.map((m) => ({
+    id: m.id,
+    role: m.role,
+    content: m.content,
+    tokensIn: m.tokensIn,
+    tokensOut: m.tokensOut,
+    filteredBy: m.filtered_by || null,
+    filteredOriginal: m.filtered_original || null,
+    createdAt: m.createdAt,
+  }));
   return {
     id: session.id,
     visitorId: session.visitorId,

@@ -445,6 +445,8 @@ export interface AdminChatMessage {
   content: string;
   tokensIn: number;
   tokensOut: number;
+  filteredBy: string | null;
+  filteredOriginal: string | null;
   createdAt: string;
 }
 
