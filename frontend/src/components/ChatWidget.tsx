@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { X, Send, RefreshCcw, ArrowUpRight } from 'lucide-react';
+import { trackEvent } from './AnalyticsTracker';
 import {
   sendChatMessage,
   getSettings,
@@ -221,6 +222,12 @@ export default function ChatWidget() {
     if (!trimmed || sending) return;
     setError('');
     setInput('');
+    // Track only the FIRST message in the session so we can attribute
+    // "what chat path led to a meaningful conversation" without
+    // spamming the events table on every keystroke-Enter.
+    if (!state.sessionId && state.messages.length === 0) {
+      trackEvent('chat_message_sent', { firstMessage: 'true' });
+    }
     const userMsg: Message = { role: 'user', content: trimmed };
     setState((s) => ({ ...s, messages: [...s.messages, userMsg] }));
     setSending(true);
@@ -265,7 +272,10 @@ export default function ChatWidget() {
       {/* Launcher */}
       {!open && (
         <button
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            setOpen(true);
+            trackEvent('chat_opened');
+          }}
           aria-label="Chat with Duncan"
           className="fixed bottom-6 right-6 z-50 group"
         >

@@ -6,6 +6,7 @@ import Analytics, { AnalyticsNoscript } from '@/components/Analytics';
 import ChatWidget from '@/components/ChatWidget';
 import NewsletterPopup from '@/components/NewsletterPopup';
 import ExitIntentPopup from '@/components/ExitIntentPopup';
+import AnalyticsTracker from '@/components/AnalyticsTracker';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -74,6 +75,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ChatWidget />
         <NewsletterPopup />
         <ExitIntentPopup />
+        <AnalyticsTracker />
         <Analytics />
       </body>
     </html>

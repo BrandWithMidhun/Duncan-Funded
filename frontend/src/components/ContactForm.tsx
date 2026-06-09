@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { submitContact } from '@/lib/api';
+import { trackEvent } from './AnalyticsTracker';
 
 type Errors = Partial<Record<'name' | 'email' | 'message', string>>;
 
@@ -56,6 +57,7 @@ export default function ContactForm() {
     if (res.ok) {
       setForm({ name: '', email: '', message: '' });
       setTouched({});
+      trackEvent('contact_submitted');
     }
   };
 

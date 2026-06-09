@@ -24,11 +24,13 @@ import {
   ScrollText,
   KeyRound,
   Ban,
+  BarChart3,
 } from 'lucide-react';
 import { fetchMe, logout, getToken, type AdminUser } from '@/lib/adminApi';
 
 const adminNav: NavItem[] = [
   { label: 'Dashboard', href: '/admin', Icon: LayoutDashboard },
+  { label: 'Analytics', href: '/admin/analytics', Icon: BarChart3 },
   { label: 'Content', href: '/admin/content', Icon: FileEdit },
   {
     label: 'Programs',

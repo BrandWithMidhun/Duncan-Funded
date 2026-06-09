@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { TradingCandle } from './TradingBackground';
+import { trackEvent } from './AnalyticsTracker';
 import {
   getSettings,
   DEFAULT_SETTINGS,
@@ -284,6 +285,7 @@ export default function ProgramsConfigurator() {
     if (!next.sizes.includes(size)) setSize(next.sizes[Math.min(2, next.sizes.length - 1)] ?? 0);
     if (!next.platforms.includes(platform)) setPlatform(next.platforms[0] ?? '');
     setSelectedAddons({});
+    trackEvent('program_selected', { program: next.name, programId: id });
   };
 
   const toggleAddon = (addon: Addon) => {
@@ -313,6 +315,13 @@ export default function ProgramsConfigurator() {
       return;
     }
     const ctaUrl = settings.urls.getFunded;
+    trackEvent('signup_clicked', {
+      program: program.name,
+      programId: program.id,
+      size,
+      platform,
+      total,
+    });
     setNotice({
       kind: 'ok',
       msg: `Challenge configured: ${program.name} • ${formatPrice(size)} • ${platform} • ${formatPrice(total)}`,

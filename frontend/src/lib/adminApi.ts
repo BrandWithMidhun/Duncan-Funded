@@ -198,6 +198,7 @@ export interface SiteSettings {
   integrations: {
     gtmId: string;
     metaPixelId: string;
+    ga4MeasurementId: string;
     whatsappPhone: string;
     whatsappMessage: string;
   };
@@ -578,5 +579,177 @@ export async function listAudit(opts: { limit?: number; offset?: number } = {}) 
 export async function listLoginAttempts(limit = 100) {
   return authFetch<{ data: LoginAttemptEntry[] }>(
     `/api/admin/audit/login-attempts?limit=${limit}`,
+  );
+}
+
+// ---- Analytics (admin) ----
+
+export interface AnalyticsSummary {
+  pageviews: number;
+  sessions: number;
+  avgPagesPerSession: number;
+  bounceRate: number;
+  from: string;
+  to: string;
+}
+
+export interface TimeseriesPoint {
+  bucket: string;
+  pageviews: number;
+  sessions: number;
+}
+
+export interface TopPageRow {
+  path: string;
+  pageviews: number;
+  sessions: number;
+}
+
+export interface ReferrerRow {
+  source: string;
+  sessions: number;
+  pageviews: number;
+}
+
+export interface DevicesBreakdown {
+  devices: { name: string; sessions: number }[];
+  browsers: { name: string; sessions: number }[];
+}
+
+export interface CountryRow {
+  country: string;
+  sessions: number;
+}
+
+export interface EventRow {
+  name: string;
+  total: number;
+  sessions: number;
+}
+
+export interface RecentActivity {
+  path: string;
+  referrer: string;
+  country: string;
+  device: string;
+  browser: string;
+  createdAt: string;
+}
+
+export interface InternalMetrics {
+  chat: { conversations: number; messages: number };
+  newsletterSignups: number;
+  contactSubmissions: number;
+  logins: { successes: number; failures: number };
+}
+
+type RangeOpts = { from?: string; to?: string };
+
+function buildRangeQs(opts: RangeOpts & { [k: string]: string | number | undefined }) {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(opts)) {
+    if (v !== undefined && v !== '') qs.set(k, String(v));
+  }
+  const s = qs.toString();
+  return s ? `?${s}` : '';
+}
+
+export async function analyticsSummary(opts: RangeOpts) {
+  return authFetch<{ data: AnalyticsSummary }>(
+    `/api/admin/analytics/summary${buildRangeQs(opts)}`,
+  );
+}
+
+export async function analyticsTimeseries(
+  opts: RangeOpts & { granularity?: 'day' | 'hour' },
+) {
+  return authFetch<{ data: TimeseriesPoint[] }>(
+    `/api/admin/analytics/timeseries${buildRangeQs(opts)}`,
+  );
+}
+
+export async function analyticsTopPages(opts: RangeOpts & { limit?: number }) {
+  return authFetch<{ data: TopPageRow[] }>(
+    `/api/admin/analytics/top-pages${buildRangeQs(opts)}`,
+  );
+}
+
+export async function analyticsReferrers(opts: RangeOpts & { limit?: number }) {
+  return authFetch<{ data: ReferrerRow[] }>(
+    `/api/admin/analytics/referrers${buildRangeQs(opts)}`,
+  );
+}
+
+export async function analyticsDevices(opts: RangeOpts) {
+  return authFetch<{ data: DevicesBreakdown }>(
+    `/api/admin/analytics/devices${buildRangeQs(opts)}`,
+  );
+}
+
+export async function analyticsCountries(opts: RangeOpts & { limit?: number }) {
+  return authFetch<{ data: CountryRow[] }>(
+    `/api/admin/analytics/countries${buildRangeQs(opts)}`,
+  );
+}
+
+export async function analyticsEvents(opts: RangeOpts & { limit?: number }) {
+  return authFetch<{ data: EventRow[] }>(
+    `/api/admin/analytics/events${buildRangeQs(opts)}`,
+  );
+}
+
+export async function analyticsRecent(opts: { limit?: number } = {}) {
+  return authFetch<{ data: RecentActivity[] }>(
+    `/api/admin/analytics/recent${buildRangeQs(opts)}`,
+  );
+}
+
+export async function analyticsInternal(opts: RangeOpts) {
+  return authFetch<{ data: InternalMetrics }>(
+    `/api/admin/analytics/internal${buildRangeQs(opts)}`,
+  );
+}
+
+// ---- Customer journey ----
+
+export interface SessionJourney {
+  sessionHash: string;
+  path: string[];
+  startedAt: string;
+  endedAt: string;
+  pageviewCount: number;
+  entryReferrer: string;
+  country: string;
+  device: string;
+  browser: string;
+}
+
+export interface EventAttributionRow {
+  path: string[];
+  count: number;
+}
+
+export interface TopPathRow {
+  path: string[];
+  sessions: number;
+}
+
+export async function analyticsJourneys(opts: RangeOpts & { limit?: number }) {
+  return authFetch<{ data: SessionJourney[] }>(
+    `/api/admin/analytics/journeys${buildRangeQs(opts)}`,
+  );
+}
+
+export async function analyticsEventAttribution(
+  opts: RangeOpts & { eventName: string; limit?: number },
+) {
+  return authFetch<{ data: EventAttributionRow[] }>(
+    `/api/admin/analytics/event-attribution${buildRangeQs(opts)}`,
+  );
+}
+
+export async function analyticsTopPaths(opts: RangeOpts & { limit?: number }) {
+  return authFetch<{ data: TopPathRow[] }>(
+    `/api/admin/analytics/top-paths${buildRangeQs(opts)}`,
   );
 }

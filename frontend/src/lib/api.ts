@@ -175,6 +175,7 @@ export interface SiteSettings {
   integrations: {
     gtmId: string;
     metaPixelId: string;
+    ga4MeasurementId: string;
     whatsappPhone: string;
     whatsappMessage: string;
   };
@@ -229,6 +230,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   integrations: {
     gtmId: '',
     metaPixelId: '',
+    ga4MeasurementId: '',
     whatsappPhone: '',
     whatsappMessage: '',
   },

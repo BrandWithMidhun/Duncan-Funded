@@ -330,6 +330,37 @@ export default function AdminSettingsPage() {
               </div>
 
               <div>
+                <label className={labelClass}>Google Analytics 4 Measurement ID</label>
+                <input
+                  value={settings.integrations?.ga4MeasurementId || ''}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      integrations: {
+                        ...(settings.integrations || {
+                          gtmId: '',
+                          metaPixelId: '',
+                          ga4MeasurementId: '',
+                          whatsappPhone: '',
+                          whatsappMessage: '',
+                        }),
+                        ga4MeasurementId: e.target.value
+                          .toUpperCase()
+                          .replace(/[^A-Z0-9-]/g, ''),
+                      },
+                    })
+                  }
+                  placeholder="G-XXXXXXXXXX"
+                  className={inputClass}
+                  maxLength={20}
+                />
+                <p className="font-body text-xs text-wool-muted/60 mt-1.5">
+                  Format: <code>G-XXXXXXXXXX</code>. Direct gtag install — independent of GTM.
+                  Can coexist with GTM if you have GA4 set up there too (both will fire).
+                </p>
+              </div>
+
+              <div>
                 <label className={labelClass}>WhatsApp Phone Number</label>
                 <input
                   value={settings.integrations?.whatsappPhone || ''}

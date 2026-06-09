@@ -243,6 +243,39 @@ CREATE TABLE IF NOT EXISTS admin_audit_log (
 );
 CREATE INDEX IF NOT EXISTS admin_audit_created_idx ON admin_audit_log("createdAt" DESC);
 CREATE INDEX IF NOT EXISTS admin_audit_user_idx ON admin_audit_log("userId", "createdAt" DESC);
+
+-- Analytics: pageviews and custom events.
+-- First-party, cookieless. sessionHash = sha256(ip + ua + daily_salt) — same
+-- visitor within a calendar day produces the same hash (so we can count
+-- unique sessions per day) but cannot be correlated across days. Raw IP
+-- and full UA never persisted.
+CREATE TABLE IF NOT EXISTS pageviews (
+  id BIGSERIAL PRIMARY KEY,
+  "sessionHash" TEXT NOT NULL,
+  path TEXT NOT NULL,
+  referrer_host TEXT,
+  country TEXT,
+  device TEXT,
+  browser TEXT,
+  utm_source TEXT,
+  utm_medium TEXT,
+  utm_campaign TEXT,
+  "createdAt" TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS pageviews_created_idx ON pageviews("createdAt" DESC);
+CREATE INDEX IF NOT EXISTS pageviews_session_idx ON pageviews("sessionHash", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS pageviews_path_idx ON pageviews(path);
+
+CREATE TABLE IF NOT EXISTS analytics_events (
+  id BIGSERIAL PRIMARY KEY,
+  "sessionHash" TEXT NOT NULL,
+  name TEXT NOT NULL,
+  path TEXT,
+  properties JSONB,
+  "createdAt" TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS analytics_events_created_idx ON analytics_events("createdAt" DESC);
+CREATE INDEX IF NOT EXISTS analytics_events_name_idx ON analytics_events(name, "createdAt" DESC);
 `;
 
 /**

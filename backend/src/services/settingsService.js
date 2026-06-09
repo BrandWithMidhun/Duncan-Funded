@@ -31,6 +31,10 @@ const DEFAULTS = {
   gtm_id: '',
   // Meta (Facebook) Pixel ID (numeric, e.g. "1234567890123456"); empty => not loaded.
   meta_pixel_id: '',
+  // Google Analytics 4 Measurement ID (e.g. "G-XXXXXXXXXX"); empty => not loaded.
+  // Can coexist with GTM — they don't conflict. Direct gtag is more reliable
+  // than routing GA4 through GTM but loses the GTM trigger flexibility.
+  ga4_measurement_id: '',
   // WhatsApp phone in international format with no leading + (e.g. "971501234567")
   // Empty => floating button hidden.
   whatsapp_phone: '',
@@ -106,6 +110,7 @@ export async function getSettings() {
     integrations: {
       gtmId: merged.gtm_id || '',
       metaPixelId: merged.meta_pixel_id || '',
+      ga4MeasurementId: merged.ga4_measurement_id || '',
       whatsappPhone: merged.whatsapp_phone || '',
       whatsappMessage: merged.whatsapp_message || '',
     },
@@ -185,6 +190,14 @@ export async function updateSettings(input) {
     if (typeof i.metaPixelId === 'string') {
       const v = i.metaPixelId.trim();
       updates.meta_pixel_id = /^\d{0,20}$/.test(v) ? v : '';
+    }
+    // GA4 IDs are "G-" followed by alphanumeric (typically 10 chars).
+    // Empty string is fine (means "off"). Anything else gets rejected
+    // by setting to empty rather than throwing — that way a typo in
+    // admin doesn't break saving the whole settings page.
+    if (typeof i.ga4MeasurementId === 'string') {
+      const v = i.ga4MeasurementId.trim().toUpperCase();
+      updates.ga4_measurement_id = /^(G-[A-Z0-9]+)?$/.test(v) ? v : '';
     }
     if (typeof i.whatsappPhone === 'string') {
       // Strip everything except digits (international format expected, no leading +)

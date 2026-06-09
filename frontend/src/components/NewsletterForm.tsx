@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { subscribeNewsletter } from '@/lib/api';
+import { trackEvent } from './AnalyticsTracker';
 
 interface Props {
   heading?: string;
@@ -38,6 +39,7 @@ export default function NewsletterForm({
     if (res.ok) {
       setEmail('');
       setTouched(false);
+      trackEvent('newsletter_signup', { source: 'footer' });
     }
   };
 

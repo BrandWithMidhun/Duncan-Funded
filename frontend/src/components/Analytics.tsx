@@ -8,7 +8,7 @@ import { getSettings } from '@/lib/api';
  */
 export default async function Analytics() {
   const settings = await getSettings();
-  const { gtmId, metaPixelId } = settings.integrations;
+  const { gtmId, metaPixelId, ga4MeasurementId } = settings.integrations;
 
   return (
     <>
@@ -27,6 +27,32 @@ export default async function Analytics() {
             `,
           }}
         />
+      )}
+
+      {/* Direct GA4 install (independent of GTM).
+          Safe to coexist with GTM-routed GA4: both will fire, but if you
+          only configure one place, only that one fires. Use this when you
+          want simpler/more reliable GA4 without GTM trigger config. */}
+      {ga4MeasurementId && (
+        <>
+          <Script
+            id="ga4-loader"
+            strategy="afterInteractive"
+            src={`https://www.googletagmanager.com/gtag/js?id=${ga4MeasurementId}`}
+          />
+          <Script
+            id="ga4-init"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${ga4MeasurementId}', { send_page_view: true });
+              `,
+            }}
+          />
+        </>
       )}
 
       {/* Meta Pixel */}

@@ -12,6 +12,7 @@ import * as search from '../controllers/searchController.js';
 import * as chat from '../controllers/chatController.js';
 import * as restrictions from '../controllers/chatRestrictionController.js';
 import * as audit from '../controllers/auditController.js';
+import * as analytics from '../controllers/analyticsController.js';
 import { auditMiddleware } from '../services/auditService.js';
 import { getPublishedSlugs } from '../services/postService.js';
 
@@ -111,5 +112,21 @@ router.delete('/admin/chat-restrictions/:id', requireAuth, restrictions.remove);
 // ---- Admin audit log + login attempts ----
 router.get('/admin/audit', requireAuth, audit.list);
 router.get('/admin/audit/login-attempts', requireAuth, audit.recentLoginAttempts);
+
+// ---- Analytics (public ingestion + admin views) ----
+router.post('/analytics/pageview', analytics.trackPageview);
+router.post('/analytics/event', analytics.trackEvent);
+router.get('/admin/analytics/summary', requireAuth, analytics.summary);
+router.get('/admin/analytics/timeseries', requireAuth, analytics.timeseries);
+router.get('/admin/analytics/top-pages', requireAuth, analytics.topPages);
+router.get('/admin/analytics/referrers', requireAuth, analytics.referrers);
+router.get('/admin/analytics/devices', requireAuth, analytics.devices);
+router.get('/admin/analytics/countries', requireAuth, analytics.countries);
+router.get('/admin/analytics/events', requireAuth, analytics.events);
+router.get('/admin/analytics/recent', requireAuth, analytics.recent);
+router.get('/admin/analytics/internal', requireAuth, analytics.internal);
+router.get('/admin/analytics/journeys', requireAuth, analytics.journeys);
+router.get('/admin/analytics/event-attribution', requireAuth, analytics.eventAttribution);
+router.get('/admin/analytics/top-paths', requireAuth, analytics.topPaths);
 
 export default router;

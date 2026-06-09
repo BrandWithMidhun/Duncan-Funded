@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { X } from 'lucide-react';
 import { getSettings, DEFAULT_SETTINGS, type SiteSettings, subscribeNewsletter } from '@/lib/api';
+import { trackEvent } from './AnalyticsTracker';
 
 /**
  * Newsletter popup. Shows after either:
@@ -116,6 +117,7 @@ export default function NewsletterPopup() {
     if (res.ok) {
       setSuccess(true);
       saveState({ subscribed: true });
+      trackEvent('newsletter_signup', { source: 'popup' });
       // Auto-close after a moment so the user sees the confirmation
       window.setTimeout(() => setOpen(false), 2200);
     } else {
