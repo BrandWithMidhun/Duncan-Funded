@@ -20,7 +20,7 @@ const DEFAULTS = {
   menu_items: JSON.stringify([
     { label: 'Home', href: '/' },
     { label: 'Programs', href: '/programs' },
-    { label: 'Trade Zone', href: '/trade-zone' },
+    { label: 'Trader Arsenal', href: '/trade-zone' },
     { label: 'Blog', href: '/blog' },
     { label: 'About', href: '/about' },
     { label: 'FAQ', href: '/faq' },

@@ -8,6 +8,7 @@ import * as seo from '../controllers/seoController.js';
 import * as faq from '../controllers/faqController.js';
 import * as content from '../controllers/contentController.js';
 import * as programs from '../controllers/programController.js';
+import * as tradeZone from '../controllers/tradeZoneController.js';
 import * as search from '../controllers/searchController.js';
 import * as chat from '../controllers/chatController.js';
 import * as restrictions from '../controllers/chatRestrictionController.js';
@@ -64,6 +65,15 @@ router.get('/admin/programs/:id', requireAuth, programs.adminGet);
 router.post('/admin/programs', requireAuth, programs.adminCreate);
 router.put('/admin/programs/:id', requireAuth, programs.adminUpdate);
 router.delete('/admin/programs/:id', requireAuth, programs.adminDelete);
+
+// ---- Trader Arsenal (formerly Trade Zone) tools ----
+// Public read returns enabled tools only. Admin endpoints are full CRUD.
+router.get('/trade-zone/tools', tradeZone.listPublic);
+router.get('/admin/trade-zone-tools', requireAuth, tradeZone.listAll);
+router.get('/admin/trade-zone-tools/:id', requireAuth, tradeZone.getOne);
+router.post('/admin/trade-zone-tools', requireAuth, tradeZone.create);
+router.put('/admin/trade-zone-tools/:id', requireAuth, tradeZone.update);
+router.delete('/admin/trade-zone-tools/:id', requireAuth, tradeZone.remove);
 
 // ---- Blog (public, read-only) ----
 router.get('/posts', posts.getPosts);

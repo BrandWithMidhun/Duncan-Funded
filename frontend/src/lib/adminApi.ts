@@ -425,6 +425,65 @@ export async function deleteProgram(id: string): Promise<ApiResult<{ message: st
   return authFetch<{ message: string }>(`/api/admin/programs/${id}`, { method: 'DELETE' });
 }
 
+// ---- Trader Arsenal tools (admin) ----
+
+export interface TradeZoneTool {
+  id: string;
+  name: string;
+  description: string;
+  iconKey: string;
+  launchUrl: string;
+  launchLabel: string;
+  order: number;
+  enabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type TradeZoneToolInput = Omit<
+  TradeZoneTool,
+  'id' | 'createdAt' | 'updatedAt'
+>;
+
+export async function listTradeZoneTools(): Promise<
+  ApiResult<{ data: TradeZoneTool[] }>
+> {
+  return authFetch<{ data: TradeZoneTool[] }>('/api/admin/trade-zone-tools');
+}
+
+export async function getTradeZoneTool(
+  id: string,
+): Promise<ApiResult<{ data: TradeZoneTool }>> {
+  return authFetch<{ data: TradeZoneTool }>(`/api/admin/trade-zone-tools/${id}`);
+}
+
+export async function createTradeZoneTool(
+  input: Partial<TradeZoneToolInput>,
+): Promise<ApiResult<{ data: TradeZoneTool }>> {
+  return authFetch<{ data: TradeZoneTool }>('/api/admin/trade-zone-tools', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateTradeZoneTool(
+  id: string,
+  input: Partial<TradeZoneToolInput>,
+): Promise<ApiResult<{ data: TradeZoneTool }>> {
+  return authFetch<{ data: TradeZoneTool }>(`/api/admin/trade-zone-tools/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteTradeZoneTool(
+  id: string,
+): Promise<ApiResult<{ message: string }>> {
+  return authFetch<{ message: string }>(`/api/admin/trade-zone-tools/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 // ---- Chats (admin) ----
 
 export interface AdminChatSession {

@@ -1,67 +1,131 @@
 import type { Metadata } from 'next';
-import { Activity, CalendarDays, Calculator, BookOpen, Library, ShieldAlert } from 'lucide-react';
+import Link from 'next/link';
+import Image from 'next/image';
 import { Navbar } from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import PageHeader from '@/components/PageHeader';
+import TradingBackground from '@/components/TradingBackground';
 import { JsonLd, breadcrumbSchema, pageMetadata } from '@/lib/seo';
-import { getContent } from '@/lib/api';
+import { getContent, getTradeZoneTools } from '@/lib/api';
+import { pickToolIcon } from '@/lib/tradeZoneIcons';
 
 export async function generateMetadata(): Promise<Metadata> {
   return pageMetadata('trade-zone', '/trade-zone');
 }
 
-const ICONS = [Activity, CalendarDays, Calculator, BookOpen, Library, ShieldAlert];
-const DEFAULTS = [
-  { name: 'Live Dashboard', desc: 'Real-time P&L, drawdown, and rule monitoring for your funded accounts.' },
-  { name: 'Economic Calendar', desc: 'Stay ahead of high-impact news that moves the markets you trade.' },
-  { name: 'Position Sizer', desc: 'Calculate precise lot sizes based on your daily and overall loss limits.' },
-  { name: 'Trade Journal', desc: 'Log, tag, and review every setup. The clan rewards reflection.' },
-  { name: 'Strategy Library', desc: 'Curated playbooks from funded Duncan traders, refreshed regularly.' },
-  { name: 'Risk Console', desc: 'Pre-trade checks, max-exposure alerts, and kill-switch style protections.' },
-];
+const isExternal = (href: string) => /^https?:\/\//i.test(href);
 
-export default async function TradeZonePage() {
-  const c = await getContent();
-  const pick = (key: string, fb: string) => (c[key] && c[key].trim()) || fb;
+export default async function TraderArsenalPage() {
+  // Fetch admin-editable hero copy + dynamic tool list in parallel.
+  // Both have safe fallbacks if the API is unreachable so the page
+  // never bricks on a backend hiccup.
+  const [content, tools] = await Promise.all([getContent(), getTradeZoneTools()]);
 
+  const pick = (key: string, fb: string) =>
+    (content[key] && content[key].trim()) || fb;
+
+  const eyebrow = pick('tradezone.eyebrow', 'Duncan Trader Arsenal');
+  const heading = pick('tradezone.heading', 'TRADER ARSENAL');
+  const tagline = pick(
+    'tradezone.tagline',
+    'Your complete toolkit for funded trading success.',
+  );
   const subtitle = pick(
     'tradezone.subtitle',
-    'Tools, dashboards, and disciplined frameworks for Duncan-funded traders.',
+    'The Trader Arsenal brings your essential tools into one place — live performance tracking, risk controls, planning, and review — so you can focus on executing your edge.',
   );
-  const tools = DEFAULTS.map((d, i) => ({
-    name: pick(`tradezone.t${i + 1}_name`, d.name),
-    desc: pick(`tradezone.t${i + 1}_desc`, d.desc),
-    Icon: ICONS[i],
-  }));
 
   return (
     <div className="min-h-screen bg-pine">
       <JsonLd
         data={breadcrumbSchema([
           { name: 'Home', url: '/' },
-          { name: 'Trade Zone', url: '/trade-zone' },
+          { name: 'Trader Arsenal', url: '/trade-zone' },
         ])}
       />
       <Navbar />
-      <PageHeader title="THE TRADE ZONE" subtitle={subtitle} />
 
-      <section className="py-12 container mx-auto px-6">
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-          {tools.map((t, i) => (
-            <div
-              key={t.name || i}
-              className={`border border-gold/20 backdrop-blur-sm p-6 rounded-sm hover:border-gold/50 transition-all ${
-                i % 3 === 0 ? 'bg-highland/40' : i % 3 === 1 ? 'bg-navy/40' : 'bg-heritage/20'
-              }`}
-            >
-              <t.Icon className="w-7 h-7 text-gold mb-4" strokeWidth={1.5} />
-              <h2 className="font-display text-xl gold-text-gradient font-bold tracking-wider mb-3 uppercase">
-                {t.name}
-              </h2>
-              <p className="font-body text-wool-muted leading-relaxed">{t.desc}</p>
-            </div>
-          ))}
+      {/* Hero — ported from the Lovable design refresh */}
+      <section className="relative pt-40 pb-20 overflow-hidden">
+        <div className="absolute inset-0">
+          <TradingBackground />
+          <div className="absolute inset-0 tartan-texture opacity-10" />
+          <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/60 to-background" />
         </div>
+
+        <div className="relative z-10 container mx-auto px-6 text-center">
+          <Image
+            src="/assets/duncan-crest.png"
+            alt="Duncan Crest"
+            width={192}
+            height={192}
+            className="h-24 w-24 mx-auto mb-6 object-contain"
+            priority
+          />
+          <p className="font-body text-xs md:text-sm tracking-[0.4em] text-gold/80 uppercase mb-4">
+            {eyebrow}
+          </p>
+          <h1 className="font-display text-5xl md:text-7xl gold-text-gradient font-bold tracking-wider mb-6">
+            {heading}
+          </h1>
+          <p className="font-accent text-xl md:text-2xl text-wool-muted italic max-w-3xl mx-auto mb-6">
+            {tagline}
+          </p>
+          <p className="font-body text-base md:text-lg text-wool-muted/90 max-w-3xl mx-auto leading-relaxed">
+            {subtitle}
+          </p>
+        </div>
+      </section>
+
+      {/* Tool grid — dynamic from /api/trade-zone/tools (admin-managed) */}
+      <section className="py-16 container mx-auto px-6">
+        {tools.length === 0 ? (
+          <p className="font-body text-wool-muted text-center max-w-xl mx-auto">
+            The Trader Arsenal is being prepared. Check back soon.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {tools.map((tool) => {
+              const Icon = pickToolIcon(tool.iconKey);
+              const hasLaunch = !!tool.launchUrl;
+              const external = hasLaunch && isExternal(tool.launchUrl);
+              return (
+                <div
+                  key={tool.id}
+                  className="border border-gold/20 bg-highland/40 backdrop-blur-sm p-8 rounded-sm tartan-texture flex flex-col"
+                >
+                  <Icon
+                    className="h-8 w-8 text-gold mb-5"
+                    strokeWidth={1.25}
+                  />
+                  <h2 className="font-display text-xl md:text-2xl gold-text-gradient font-bold tracking-wider mb-3 uppercase">
+                    {tool.name}
+                  </h2>
+                  <p className="font-body text-wool-muted leading-relaxed mb-6 flex-1">
+                    {tool.description}
+                  </p>
+                  {hasLaunch &&
+                    (external ? (
+                      <a
+                        href={tool.launchUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-body text-xs tracking-[0.25em] text-gold tartan-button px-5 py-2.5 rounded-sm hover:text-gold-light transition-all duration-300 uppercase text-center"
+                      >
+                        {tool.launchLabel}
+                      </a>
+                    ) : (
+                      <Link
+                        href={tool.launchUrl}
+                        className="font-body text-xs tracking-[0.25em] text-gold tartan-button px-5 py-2.5 rounded-sm hover:text-gold-light transition-all duration-300 uppercase text-center"
+                      >
+                        {tool.launchLabel}
+                      </Link>
+                    ))}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <Footer />

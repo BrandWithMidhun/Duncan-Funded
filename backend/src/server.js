@@ -10,6 +10,10 @@ import apiRoutes from './routes/api.js';
 import { notFound, errorHandler } from './middleware/index.js';
 import { initDb, closeDb } from './lib/db.js';
 import { autoSeedIfEmpty as autoSeedPrograms } from './services/programService.js';
+import {
+  seedIfEmpty as autoSeedTradeZone,
+  renameMenuLabelIfNeeded as renameTradeZoneMenuLabel,
+} from './services/tradeZoneService.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -177,6 +181,23 @@ initDb()
       if (r.seeded) console.log(`✓ Auto-seeded ${r.seeded} default programs.`);
     } catch (e) {
       console.warn('Program auto-seed skipped:', e.message);
+    }
+
+    // Trader Arsenal tools — same idempotent pattern.
+    try {
+      const r = await autoSeedTradeZone();
+      if (r.seeded) console.log(`✓ Auto-seeded ${r.seeded} default Trader Arsenal tools.`);
+    } catch (e) {
+      console.warn('Trade Zone auto-seed skipped:', e.message);
+    }
+
+    // One-shot rename: nav menu "Trade Zone" → "Trader Arsenal".
+    // Idempotent — only fires if the old label is still in place.
+    try {
+      const r = await renameTradeZoneMenuLabel();
+      if (r.renamed) console.log('✓ Renamed nav menu "Trade Zone" → "Trader Arsenal".');
+    } catch (e) {
+      console.warn('Menu label migration skipped:', e.message);
     }
 
     const server = app.listen(PORT, () => {

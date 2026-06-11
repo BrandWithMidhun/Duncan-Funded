@@ -162,6 +162,26 @@ CREATE TABLE IF NOT EXISTS programs (
 CREATE INDEX IF NOT EXISTS programs_category_idx ON programs(category);
 CREATE INDEX IF NOT EXISTS programs_order_idx ON programs("order");
 
+-- Trader Arsenal tools (formerly "Trade Zone"). Each row is one
+-- card on the public /trade-zone page. Admin can CRUD freely.
+-- icon_key is a string lookup into a fixed lucide-icon palette on
+-- the frontend — keeps the DB schema simple and prevents arbitrary
+-- icon strings from breaking the page.
+CREATE TABLE IF NOT EXISTS trade_zone_tools (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  icon_key TEXT NOT NULL DEFAULT 'activity',
+  launch_url TEXT NOT NULL DEFAULT '',
+  launch_label TEXT NOT NULL DEFAULT 'Launch',
+  "order" INTEGER NOT NULL DEFAULT 0,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  "createdAt" TIMESTAMPTZ NOT NULL,
+  "updatedAt" TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS trade_zone_tools_order_idx ON trade_zone_tools("order");
+CREATE INDEX IF NOT EXISTS trade_zone_tools_enabled_idx ON trade_zone_tools(enabled);
+
 CREATE TABLE IF NOT EXISTS chat_sessions (
   id TEXT PRIMARY KEY,
   "visitorId" TEXT NOT NULL,

@@ -396,6 +396,36 @@ export async function getPrograms(): Promise<PublicProgram[]> {
   }
 }
 
+// ---- Trader Arsenal tools (public) ----
+
+export interface TradeZoneTool {
+  id: string;
+  name: string;
+  description: string;
+  iconKey: string;
+  launchUrl: string;
+  launchLabel: string;
+  order: number;
+  enabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/** Fetch the public Trader Arsenal tool list (enabled only).
+ *  Returns [] on error so the page can render an empty state cleanly. */
+export async function getTradeZoneTools(): Promise<TradeZoneTool[]> {
+  try {
+    const res = await fetch(`${API_URL}/api/trade-zone/tools`, {
+      next: { revalidate: 30 },
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return (json.data as TradeZoneTool[]) || [];
+  } catch {
+    return [];
+  }
+}
+
 // ---- Search (public) ----
 
 export interface SearchPostHit {

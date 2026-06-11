@@ -15,6 +15,7 @@ import {
   Settings,
   FileEdit,
   Package,
+  Briefcase,
   Menu,
   X,
   LogOut,
@@ -39,6 +40,15 @@ const adminNav: NavItem[] = [
     children: [
       { label: 'All Programs', href: '/admin/programs', Icon: List },
       { label: 'New Program', href: '/admin/programs/new', Icon: Plus },
+    ],
+  },
+  {
+    label: 'Trader Arsenal',
+    href: '/admin/trade-zone',
+    Icon: Briefcase,
+    children: [
+      { label: 'All Tools', href: '/admin/trade-zone', Icon: List },
+      { label: 'New Tool', href: '/admin/trade-zone/new', Icon: Plus },
     ],
   },
   {
