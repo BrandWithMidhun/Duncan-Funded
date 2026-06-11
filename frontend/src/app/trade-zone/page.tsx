@@ -14,10 +14,32 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const isExternal = (href: string) => /^https?:\/\//i.test(href);
 
+/**
+ * Build the destination for each tool's Launch button.
+ *
+ * Behaviour:
+ *   1. If admin set an explicit launchUrl on the tool, use that (it
+ *      wins — internal path or external URL both supported).
+ *   2. Otherwise, link to the internal detail page /trade-zone/<slug>.
+ *   3. If the tool has no slug at all (shouldn't happen after the
+ *      backfill migration, but defensive), return empty and hide
+ *      the button rather than render a broken link.
+ */
+function buildLaunchTarget(tool: {
+  slug: string;
+  launchUrl: string;
+}): { href: string; external: boolean } | null {
+  const explicit = tool.launchUrl?.trim();
+  if (explicit) {
+    return { href: explicit, external: isExternal(explicit) };
+  }
+  if (tool.slug) {
+    return { href: `/trade-zone/${tool.slug}`, external: false };
+  }
+  return null;
+}
+
 export default async function TraderArsenalPage() {
-  // Fetch admin-editable hero copy + dynamic tool list in parallel.
-  // Both have safe fallbacks if the API is unreachable so the page
-  // never bricks on a backend hiccup.
   const [content, tools] = await Promise.all([getContent(), getTradeZoneTools()]);
 
   const pick = (key: string, fb: string) =>
@@ -86,8 +108,7 @@ export default async function TraderArsenalPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {tools.map((tool) => {
               const Icon = pickToolIcon(tool.iconKey);
-              const hasLaunch = !!tool.launchUrl;
-              const external = hasLaunch && isExternal(tool.launchUrl);
+              const target = buildLaunchTarget(tool);
               return (
                 <div
                   key={tool.id}
@@ -103,10 +124,10 @@ export default async function TraderArsenalPage() {
                   <p className="font-body text-wool-muted leading-relaxed mb-6 flex-1">
                     {tool.description}
                   </p>
-                  {hasLaunch &&
-                    (external ? (
+                  {target &&
+                    (target.external ? (
                       <a
-                        href={tool.launchUrl}
+                        href={target.href}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="font-body text-xs tracking-[0.25em] text-gold tartan-button px-5 py-2.5 rounded-sm hover:text-gold-light transition-all duration-300 uppercase text-center"
@@ -115,7 +136,7 @@ export default async function TraderArsenalPage() {
                       </a>
                     ) : (
                       <Link
-                        href={tool.launchUrl}
+                        href={target.href}
                         className="font-body text-xs tracking-[0.25em] text-gold tartan-button px-5 py-2.5 rounded-sm hover:text-gold-light transition-all duration-300 uppercase text-center"
                       >
                         {tool.launchLabel}

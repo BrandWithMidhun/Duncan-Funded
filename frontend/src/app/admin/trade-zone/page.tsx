@@ -131,10 +131,20 @@ export default function AdminTradeZoneListPage() {
                   <span>icon: {t.iconKey}</span>
                   <span>·</span>
                   <span>order: {t.order}</span>
+                  {t.slug && (
+                    <>
+                      <span>·</span>
+                      <span>
+                        /trade-zone/<span className="text-gold">{t.slug}</span>
+                      </span>
+                    </>
+                  )}
                   {t.launchUrl && (
                     <>
                       <span>·</span>
-                      <span className="truncate max-w-[260px]">→ {t.launchUrl}</span>
+                      <span className="truncate max-w-[260px]">
+                        override → {t.launchUrl}
+                      </span>
                     </>
                   )}
                 </div>

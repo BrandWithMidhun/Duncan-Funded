@@ -182,6 +182,14 @@ CREATE TABLE IF NOT EXISTS trade_zone_tools (
 CREATE INDEX IF NOT EXISTS trade_zone_tools_order_idx ON trade_zone_tools("order");
 CREATE INDEX IF NOT EXISTS trade_zone_tools_enabled_idx ON trade_zone_tools(enabled);
 
+-- Slug + detail content added in a later iteration. Each tool has its
+-- own /trade-zone/<slug> detail page with markdown content rendered
+-- via react-markdown. Idempotent ADD COLUMN — safe across redeploys.
+ALTER TABLE trade_zone_tools ADD COLUMN IF NOT EXISTS slug TEXT;
+ALTER TABLE trade_zone_tools ADD COLUMN IF NOT EXISTS detail_content TEXT NOT NULL DEFAULT '';
+CREATE UNIQUE INDEX IF NOT EXISTS trade_zone_tools_slug_unique
+  ON trade_zone_tools(slug) WHERE slug IS NOT NULL AND slug <> '';
+
 CREATE TABLE IF NOT EXISTS chat_sessions (
   id TEXT PRIMARY KEY,
   "visitorId" TEXT NOT NULL,

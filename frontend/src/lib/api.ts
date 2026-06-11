@@ -400,11 +400,13 @@ export async function getPrograms(): Promise<PublicProgram[]> {
 
 export interface TradeZoneTool {
   id: string;
+  slug: string;
   name: string;
   description: string;
   iconKey: string;
   launchUrl: string;
   launchLabel: string;
+  detailContent: string;
   order: number;
   enabled: boolean;
   createdAt?: string;
@@ -423,6 +425,25 @@ export async function getTradeZoneTools(): Promise<TradeZoneTool[]> {
     return (json.data as TradeZoneTool[]) || [];
   } catch {
     return [];
+  }
+}
+
+/** Fetch a single tool by slug for the detail page.
+ *  Returns null if not found / disabled / network error — caller
+ *  renders 404 in that case. */
+export async function getTradeZoneToolBySlug(
+  slug: string,
+): Promise<TradeZoneTool | null> {
+  try {
+    const res = await fetch(
+      `${API_URL}/api/trade-zone/tools/${encodeURIComponent(slug)}`,
+      { next: { revalidate: 30 } },
+    );
+    if (!res.ok) return null;
+    const json = await res.json();
+    return (json.data as TradeZoneTool) || null;
+  } catch {
+    return null;
   }
 }
 

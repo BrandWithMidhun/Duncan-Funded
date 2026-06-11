@@ -67,8 +67,9 @@ router.put('/admin/programs/:id', requireAuth, programs.adminUpdate);
 router.delete('/admin/programs/:id', requireAuth, programs.adminDelete);
 
 // ---- Trader Arsenal (formerly Trade Zone) tools ----
-// Public read returns enabled tools only. Admin endpoints are full CRUD.
+// Public reads — list + single tool by slug. Admin endpoints are full CRUD.
 router.get('/trade-zone/tools', tradeZone.listPublic);
+router.get('/trade-zone/tools/:slug', tradeZone.getBySlug);
 router.get('/admin/trade-zone-tools', requireAuth, tradeZone.listAll);
 router.get('/admin/trade-zone-tools/:id', requireAuth, tradeZone.getOne);
 router.post('/admin/trade-zone-tools', requireAuth, tradeZone.create);

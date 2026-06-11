@@ -7,44 +7,82 @@ import {
   createTradeZoneTool,
   updateTradeZoneTool,
   type TradeZoneTool,
-  type TradeZoneToolInput,
 } from '@/lib/adminApi';
 import { TRADE_ZONE_ICON_KEYS, pickToolIcon } from '@/lib/tradeZoneIcons';
+import MarkdownEditor from './MarkdownEditor';
 
 interface Props {
   mode: 'create' | 'edit';
   initial?: TradeZoneTool;
 }
 
-const EMPTY: TradeZoneToolInput = {
+/**
+ * Local form shape — matches the backend create/update payload.
+ * Includes slug + detailContent, which are managed below.
+ */
+type FormState = {
+  name: string;
+  slug: string;
+  description: string;
+  iconKey: string;
+  launchUrl: string;
+  launchLabel: string;
+  detailContent: string;
+  order: number;
+  enabled: boolean;
+};
+
+const EMPTY: FormState = {
   name: '',
+  slug: '',
   description: '',
   iconKey: 'activity',
   launchUrl: '',
   launchLabel: 'Launch',
+  detailContent: '',
   order: 0,
   enabled: true,
 };
 
+/** Match the backend slugify rules so the live preview shows what
+ *  the server will actually store. */
+function localSlugify(input: string): string {
+  return String(input || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-')
+    .slice(0, 80);
+}
+
 export default function TradeZoneToolForm({ mode, initial }: Props) {
   const router = useRouter();
-  const [form, setForm] = useState<TradeZoneToolInput>(() =>
+  const [form, setForm] = useState<FormState>(() =>
     initial
       ? {
           name: initial.name,
+          slug: initial.slug || '',
           description: initial.description,
           iconKey: initial.iconKey,
           launchUrl: initial.launchUrl,
           launchLabel: initial.launchLabel,
+          detailContent: initial.detailContent || '',
           order: initial.order,
           enabled: initial.enabled,
         }
       : EMPTY,
   );
+  // Slug auto-fill behaviour: in create mode, if the admin hasn't typed
+  // anything into the slug field, we keep deriving it from the name as
+  // they type. Once they touch the slug field, we stop overriding it.
+  const [slugTouched, setSlugTouched] = useState(mode === 'edit');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   const PreviewIcon = pickToolIcon(form.iconKey);
+  const previewSlug = form.slug || localSlugify(form.name) || 'tool';
 
   const submit = async () => {
     setError('');
@@ -52,10 +90,11 @@ export default function TradeZoneToolForm({ mode, initial }: Props) {
     if (!form.description.trim()) return setError('Description is required.');
 
     setBusy(true);
+    const payload = { ...form };
     const res =
       mode === 'create'
-        ? await createTradeZoneTool(form)
-        : await updateTradeZoneTool(initial!.id, form);
+        ? await createTradeZoneTool(payload)
+        : await updateTradeZoneTool(initial!.id, payload);
     setBusy(false);
 
     if (!res.ok) {
@@ -66,13 +105,11 @@ export default function TradeZoneToolForm({ mode, initial }: Props) {
     router.refresh();
   };
 
-  const set = <K extends keyof TradeZoneToolInput>(
-    key: K,
-    val: TradeZoneToolInput[K],
-  ) => setForm((f) => ({ ...f, [key]: val }));
+  const set = <K extends keyof FormState>(key: K, val: FormState[K]) =>
+    setForm((f) => ({ ...f, [key]: val }));
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-3xl">
       {error && (
         <p className="font-body text-sm text-heritage bg-heritage/10 border border-heritage/30 px-4 py-3 rounded-sm">
           {error}
@@ -86,7 +123,17 @@ export default function TradeZoneToolForm({ mode, initial }: Props) {
         <input
           type="text"
           value={form.name}
-          onChange={(e) => set('name', e.target.value)}
+          onChange={(e) => {
+            set('name', e.target.value);
+            // Auto-derive slug while admin hasn't touched the slug field
+            if (!slugTouched) {
+              setForm((f) => ({
+                ...f,
+                name: e.target.value,
+                slug: localSlugify(e.target.value),
+              }));
+            }
+          }}
           maxLength={120}
           placeholder="e.g. Live Dashboard"
           className="w-full bg-pine/60 border border-gold/20 rounded-sm px-4 py-2.5 font-body text-sm text-wool placeholder:text-wool-muted/40 focus:border-gold/60 focus:outline-none"
@@ -95,14 +142,40 @@ export default function TradeZoneToolForm({ mode, initial }: Props) {
 
       <div>
         <label className="block font-display text-xs tracking-[0.2em] uppercase text-gold/80 mb-2">
-          Description
+          Slug
+        </label>
+        <div className="flex items-stretch gap-0">
+          <span className="font-body text-xs text-wool-muted bg-pine/40 border border-r-0 border-gold/20 rounded-l-sm px-3 flex items-center">
+            /trade-zone/
+          </span>
+          <input
+            type="text"
+            value={form.slug}
+            onChange={(e) => {
+              setSlugTouched(true);
+              set('slug', localSlugify(e.target.value));
+            }}
+            placeholder={localSlugify(form.name) || 'tool-slug'}
+            className="flex-1 bg-pine/60 border border-gold/20 rounded-r-sm px-4 py-2.5 font-body text-sm text-wool placeholder:text-wool-muted/40 focus:border-gold/60 focus:outline-none"
+          />
+        </div>
+        <p className="font-body text-[11px] text-wool-muted/60 mt-1">
+          URL of the detail page. Auto-generated from the name; edit if you
+          want a different path. Resulting URL:{' '}
+          <code className="text-gold">/trade-zone/{previewSlug}</code>
+        </p>
+      </div>
+
+      <div>
+        <label className="block font-display text-xs tracking-[0.2em] uppercase text-gold/80 mb-2">
+          Card Description
         </label>
         <textarea
           value={form.description}
           onChange={(e) => set('description', e.target.value)}
           maxLength={600}
           rows={3}
-          placeholder="A short, plain-language description shown on the card."
+          placeholder="Short blurb shown on the Trader Arsenal card and the detail page hero."
           className="w-full bg-pine/60 border border-gold/20 rounded-sm px-4 py-2.5 font-body text-sm text-wool placeholder:text-wool-muted/40 focus:border-gold/60 focus:outline-none resize-y"
         />
         <p className="font-body text-[11px] text-wool-muted/60 mt-1">
@@ -153,21 +226,24 @@ export default function TradeZoneToolForm({ mode, initial }: Props) {
 
       <div>
         <label className="block font-display text-xs tracking-[0.2em] uppercase text-gold/80 mb-2">
-          Launch URL
+          Launch URL Override (Optional)
         </label>
         <input
           type="text"
           value={form.launchUrl}
           onChange={(e) => set('launchUrl', e.target.value)}
           maxLength={500}
-          placeholder="e.g. /admin or https://dashboard.example.com"
+          placeholder="Leave empty to link to the detail page above"
           className="w-full bg-pine/60 border border-gold/20 rounded-sm px-4 py-2.5 font-body text-sm text-wool placeholder:text-wool-muted/40 focus:border-gold/60 focus:outline-none"
         />
         <p className="font-body text-[11px] text-wool-muted/60 mt-1">
-          Internal paths start with <code className="text-gold">/</code> and open in
-          the same tab. External URLs (
-          <code className="text-gold">https://…</code>) open in a new tab. Leave
-          empty to hide the Launch button.
+          By default the card's Launch button goes to{' '}
+          <code className="text-gold">/trade-zone/{previewSlug}</code>. Set
+          an override here if the button should jump straight to an
+          external dashboard (
+          <code className="text-gold">https://…</code>) or a different
+          internal page (
+          <code className="text-gold">/some/path</code>).
         </p>
       </div>
 
@@ -183,6 +259,24 @@ export default function TradeZoneToolForm({ mode, initial }: Props) {
           placeholder="Launch"
           className="w-full bg-pine/60 border border-gold/20 rounded-sm px-4 py-2.5 font-body text-sm text-wool placeholder:text-wool-muted/40 focus:border-gold/60 focus:outline-none"
         />
+      </div>
+
+      <div>
+        <label className="block font-display text-xs tracking-[0.2em] uppercase text-gold/80 mb-2">
+          Detail Page Content
+        </label>
+        <MarkdownEditor
+          value={form.detailContent}
+          onChange={(v) => set('detailContent', v)}
+          placeholder="Write the full description shown on /trade-zone/{slug}. Use the toolbar for headings, lists, links, and emphasis."
+        />
+        <p className="font-body text-[11px] text-wool-muted/60 mt-2">
+          This is the body of the tool's dedicated detail page. Saved as
+          Markdown. Keyboard shortcuts:{' '}
+          <strong className="text-gold">Cmd/Ctrl+B</strong> bold,{' '}
+          <strong className="text-gold">Cmd/Ctrl+I</strong> italic,{' '}
+          <strong className="text-gold">Cmd/Ctrl+K</strong> link.
+        </p>
       </div>
 
       <label className="flex items-center gap-3 cursor-pointer select-none">
@@ -205,6 +299,16 @@ export default function TradeZoneToolForm({ mode, initial }: Props) {
         >
           {busy ? 'Saving…' : mode === 'create' ? 'Create Tool' : 'Save Changes'}
         </button>
+        {mode === 'edit' && initial?.slug && (
+          <Link
+            href={`/trade-zone/${initial.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-body text-xs tracking-wider text-wool-muted border border-gold/20 px-5 py-2.5 rounded-sm hover:text-wool hover:border-gold/40 uppercase"
+          >
+            View live ↗
+          </Link>
+        )}
         <Link
           href="/admin/trade-zone"
           className="font-body text-xs tracking-wider text-wool-muted border border-gold/20 px-5 py-2.5 rounded-sm hover:text-wool hover:border-gold/40 uppercase"

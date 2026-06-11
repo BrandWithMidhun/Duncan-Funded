@@ -12,6 +12,8 @@ import { initDb, closeDb } from './lib/db.js';
 import { autoSeedIfEmpty as autoSeedPrograms } from './services/programService.js';
 import {
   seedIfEmpty as autoSeedTradeZone,
+  backfillSlugsIfMissing as backfillTradeZoneSlugs,
+  backfillDetailContentIfMissing as backfillTradeZoneDetail,
   renameMenuLabelIfNeeded as renameTradeZoneMenuLabel,
 } from './services/tradeZoneService.js';
 
@@ -189,6 +191,22 @@ initDb()
       if (r.seeded) console.log(`✓ Auto-seeded ${r.seeded} default Trader Arsenal tools.`);
     } catch (e) {
       console.warn('Trade Zone auto-seed skipped:', e.message);
+    }
+
+    // Backfill: any row created before slug+detail_content existed
+    // gets patched up so its detail page works. Both are idempotent —
+    // once everything has a slug + content, these no-op.
+    try {
+      const r = await backfillTradeZoneSlugs();
+      if (r.backfilled) console.log(`✓ Backfilled slugs on ${r.backfilled} Trader Arsenal tool(s).`);
+    } catch (e) {
+      console.warn('Trade Zone slug backfill skipped:', e.message);
+    }
+    try {
+      const r = await backfillTradeZoneDetail();
+      if (r.patched) console.log(`✓ Backfilled detail content on ${r.patched} Trader Arsenal tool(s).`);
+    } catch (e) {
+      console.warn('Trade Zone detail backfill skipped:', e.message);
     }
 
     // One-shot rename: nav menu "Trade Zone" → "Trader Arsenal".

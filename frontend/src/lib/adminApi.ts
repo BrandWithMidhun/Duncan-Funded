@@ -429,11 +429,13 @@ export async function deleteProgram(id: string): Promise<ApiResult<{ message: st
 
 export interface TradeZoneTool {
   id: string;
+  slug: string;
   name: string;
   description: string;
   iconKey: string;
   launchUrl: string;
   launchLabel: string;
+  detailContent: string;
   order: number;
   enabled: boolean;
   createdAt?: string;

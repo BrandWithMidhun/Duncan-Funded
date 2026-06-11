@@ -6,6 +6,11 @@ export const listPublic = asyncHandler(async (_req, res) => {
   res.json({ data: await svc.listPublic() });
 });
 
+/** Public — single tool by slug for the /trade-zone/<slug> detail page. */
+export const getBySlug = asyncHandler(async (req, res) => {
+  res.json({ data: await svc.getBySlug(req.params.slug) });
+});
+
 /** Admin endpoints. */
 export const listAll = asyncHandler(async (_req, res) => {
   res.json({ data: await svc.listAll() });
