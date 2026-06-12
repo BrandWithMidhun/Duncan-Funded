@@ -252,6 +252,17 @@ initDb()
       console.warn('Menu label migration skipped:', e.message);
     }
 
+    // One-shot content_blocks renames (currently: home hero headline).
+    // Each rename is gated on the current value matching the exact
+    // previous default, so admin edits are never overwritten.
+    try {
+      const { migrateContentRenames } = await import('./services/contentService.js');
+      const r = await migrateContentRenames();
+      if (r.renamed) console.log(`✓ Renamed ${r.renamed} content block(s) to updated copy.`);
+    } catch (e) {
+      console.warn('Content renames migration skipped:', e.message);
+    }
+
     const server = app.listen(PORT, () => {
       console.log(`⚔  Duncan Funded API running on port ${PORT}`);
     });

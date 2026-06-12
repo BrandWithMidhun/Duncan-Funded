@@ -7,7 +7,7 @@ import HeroContent from './HeroContent';
  * defaults if any block is empty or the API is unreachable.
  */
 const DEFAULTS = {
-  titleGold: 'Capital Funding',
+  titleGold: 'Trading Capital',
   titleWhite: 'for Disciplined Traders',
   tagline: 'discere pati — learn to endure.',
   paragraph:

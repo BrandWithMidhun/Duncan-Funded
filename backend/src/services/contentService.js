@@ -24,7 +24,7 @@ export const CONTENT_REGISTRY = [
     page: 'home',
     label: 'Homepage — Hero Section',
     blocks: [
-      { key: 'home.hero.title.line1', label: 'Title — gold line', kind: 'text', default: 'Capital Funding', help: 'The bold gold portion of the headline.' },
+      { key: 'home.hero.title.line1', label: 'Title — gold line', kind: 'text', default: 'Trading Capital', help: 'The bold gold portion of the headline.' },
       { key: 'home.hero.title.line2', label: 'Title — white line', kind: 'text', default: 'for Disciplined Traders', help: 'The lighter, white portion of the headline.' },
       { key: 'home.hero.tagline', label: 'Tagline (italic)', kind: 'text', default: 'discere pati — learn to endure.' },
       { key: 'home.hero.paragraph', label: 'Hero paragraph', kind: 'textarea', default: 'A premium capital allocation firm built on discipline, transparency, and trader excellence.' },
@@ -238,4 +238,34 @@ export async function updateMany(input) {
     );
   }
   return { updated: updates.length };
+}
+
+/**
+ * One-shot migration: rename specific content_blocks values that we
+ * previously seeded with copy the brand later decided to change.
+ * Each entry is { key, from, to } — we only overwrite when the row
+ * is still exactly `from`, so any admin edit (different wording, even
+ * one extra space) is preserved.
+ *
+ * Idempotent: once flipped, no rows match on subsequent boots.
+ *
+ * Add more entries here when copy needs to flip on a future deploy.
+ */
+const CONTENT_RENAMES = [
+  { key: 'home.hero.title.line1', from: 'Capital Funding', to: 'Trading Capital' },
+];
+
+export async function migrateContentRenames() {
+  let renamed = 0;
+  for (const { key, from, to } of CONTENT_RENAMES) {
+    const row = await get('SELECT value FROM content_blocks WHERE key = ?', [key]);
+    if (!row) continue;
+    if ((row.value || '').trim() !== from) continue;
+    await run(
+      `UPDATE content_blocks SET value = ?, "updatedAt" = ? WHERE key = ?`,
+      [to, now(), key],
+    );
+    renamed += 1;
+  }
+  return { renamed };
 }

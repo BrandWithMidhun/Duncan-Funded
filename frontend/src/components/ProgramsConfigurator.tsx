@@ -20,13 +20,13 @@ import {
  * calculator: clickable sizes, platforms, and toggleable add-ons that
  * recalculated a total in real-time. The new design (Lovable Programs.tsx)
  * drops that interactivity — sizes / platforms / add-ons render as
- * read-only chips, the submit button is just "Start Trading", and the
+ * read-only chips, the submit button is just "Sign Up", and the
  * actual checkout happens on the external broker dashboard.
  *
  * What's still interactive:
  *   - Selecting which program's rules to display (radio list)
- *   - The Terms & Conditions agreement checkbox
- *   - The Start Trading button (opens the broker dashboard CTA URL)
+ *   - The Sign Up button (opens the broker dashboard CTA URL — same
+ *     target as the top-nav "Get Funded" button)
  *
  * Data flow:
  *   - Pull live programs from /api/programs once mounted; render the
@@ -272,9 +272,7 @@ export default function ProgramsConfigurator() {
     [effectivePrograms, programId],
   );
 
-  const [agreed, setAgreed] = useState(false);
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
-  const [notice, setNotice] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -341,19 +339,18 @@ export default function ProgramsConfigurator() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!agreed) {
-      setNotice({ kind: 'err', msg: 'Please agree to the Terms and Conditions to continue.' });
-      return;
-    }
+    // Same destination as the top-nav "Get Funded" button — keeps
+    // signup flow consolidated on the broker side.
     const ctaUrl = settings.urls.getFunded;
     trackEvent('signup_clicked', {
       program: program.name,
       programId: program.id,
       source: 'programs_configurator',
     });
-    setNotice({ kind: 'ok', msg: `Starting ${program.name} — opening the broker dashboard…` });
     if (/^https?:\/\//i.test(ctaUrl)) {
       window.open(ctaUrl, '_blank', 'noopener,noreferrer');
+    } else if (ctaUrl) {
+      window.location.href = ctaUrl;
     }
   };
 
@@ -520,61 +517,17 @@ export default function ProgramsConfigurator() {
               </div>
             </div>
 
-            {/* Terms + Submit */}
-            <div className="border-t border-gold/20 pt-6 space-y-5">
-              {notice && (
-                <p
-                  className={`font-body text-sm px-4 py-3 rounded-sm border ${
-                    notice.kind === 'err'
-                      ? 'text-heritage bg-heritage/10 border-heritage/30'
-                      : 'text-gold bg-gold/10 border-gold/30'
-                  }`}
-                >
-                  {notice.msg}
-                </p>
-              )}
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="sr-only"
-                  checked={agreed}
-                  onChange={(e) => setAgreed(e.target.checked)}
-                />
-                <span
-                  className={`mt-0.5 w-5 h-5 rounded-sm border flex items-center justify-center shrink-0 ${
-                    agreed
-                      ? 'bg-gradient-to-br from-gold to-gold-light border-gold'
-                      : 'border-gold/40'
-                  }`}
-                >
-                  {agreed && (
-                    <svg className="w-3.5 h-3.5 text-pine" viewBox="0 0 20 20" fill="currentColor">
-                      <path
-                        fillRule="evenodd"
-                        d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.8a1 1 0 011.4 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  )}
-                </span>
-                <span className="font-body text-xs text-wool-muted leading-relaxed">
-                  I confirm that I have read and agree to the{' '}
-                  <a
-                    href="/terms"
-                    className="text-gold underline underline-offset-2"
-                  >
-                    Terms and Conditions
-                  </a>
-                  .
-                </span>
-              </label>
+            {/* Sign Up CTA — same target as the top-nav "Get Funded"
+                button. No T&C checkbox here; the legal agreement is
+                presented during signup on the broker side. */}
+            <div className="border-t border-gold/20 pt-6">
               <motion.button
                 type="submit"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 className="w-full gold-gradient text-background font-display text-sm tracking-[0.2em] uppercase py-3.5 rounded-sm shadow-lg shadow-gold/20 hover:shadow-gold/40 transition-shadow"
               >
-                Start Trading
+                Sign Up
               </motion.button>
             </div>
           </div>

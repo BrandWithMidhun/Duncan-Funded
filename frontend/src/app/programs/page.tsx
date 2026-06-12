@@ -40,13 +40,13 @@ export default function ProgramsPage() {
           <div className="flex items-center justify-center gap-4 mb-4">
             <div className="w-12 h-px bg-gold/40" />
             <span className="font-accent text-sm tracking-[0.3em] text-gold/70 italic uppercase">
-              Duncan Capital Funding
+              Capital
             </span>
             <div className="w-12 h-px bg-gold/40" />
           </div>
           <h1 className="font-display text-4xl md:text-6xl tracking-wider mb-4">
-            <span className="gold-text-gradient">Capital</span>{' '}
-            <span className="text-foreground">Funding</span>
+            <span className="text-foreground">Asset Class Trading</span>{' '}
+            <span className="gold-text-gradient">Capital</span>
           </h1>
           <p className="font-accent text-lg md:text-xl italic text-wool-muted max-w-2xl mx-auto mb-3">
             Select your capital asset class and prove your mettle.
