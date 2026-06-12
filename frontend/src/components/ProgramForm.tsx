@@ -8,6 +8,7 @@ import {
   updateProgram,
   type Program,
   type ProgramAddon,
+  type ProgramRule,
 } from '@/lib/adminApi';
 
 const inputClass =
@@ -53,7 +54,26 @@ export default function ProgramForm({ program }: { program?: Program }) {
   // Text helpers — store comma/newline-separated text in local state, parse on save
   const [platformsText, setPlatformsText] = useState(initial.platforms.join(', '));
   const [sizesText, setSizesText] = useState(initial.sizes.join(', '));
-  const [rulesText, setRulesText] = useState(initial.rules.join('\n'));
+  // Rules are managed as structured rows with per-rule color. We
+  // normalise legacy raw-string rows from the API into green objects
+  // here so the editor always operates on the same shape, regardless
+  // of whether the DB row predates the colored-rule migration.
+  const [rules, setRules] = useState<ProgramRule[]>(() =>
+    (initial.rules || [])
+      .map((r): ProgramRule | null => {
+        if (typeof r === 'string') {
+          const t = r.trim();
+          return t ? { color: 'green', text: t } : null;
+        }
+        if (r && typeof r === 'object' && typeof r.text === 'string') {
+          const t = r.text.trim();
+          if (!t) return null;
+          return { color: r.color === 'red' ? 'red' : 'green', text: t };
+        }
+        return null;
+      })
+      .filter((r): r is ProgramRule => r !== null),
+  );
   const [pricesText, setPricesText] = useState(
     Object.entries(initial.prices)
       .map(([s, p]) => `${s}: ${p}`)
@@ -100,10 +120,9 @@ export default function ProgramForm({ program }: { program?: Program }) {
       .split(',')
       .map((s) => Number(s.trim()))
       .filter((n) => Number.isFinite(n) && n > 0);
-    const rules = rulesText
-      .split('\n')
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const rulesClean = rules
+      .map((r) => ({ color: r.color, text: r.text.trim() }))
+      .filter((r) => r.text.length > 0);
     const prices = parsePricesText(pricesText);
     const addons = form.addons
       .filter((a) => a.label.trim())
@@ -114,7 +133,7 @@ export default function ProgramForm({ program }: { program?: Program }) {
         ...(a.group ? { group: a.group } : {}),
       }));
 
-    const payload = { ...form, platforms, sizes, rules, prices, addons };
+    const payload = { ...form, platforms, sizes, rules: rulesClean, prices, addons };
 
     setSaving(true);
     const res = isEdit
@@ -257,17 +276,158 @@ export default function ProgramForm({ program }: { program?: Program }) {
       </div>
 
       <div>
-        <label className={labelClass} htmlFor="rules">
-          Rules <span className="text-wool-muted/50">(one per line)</span>
-        </label>
-        <textarea
-          id="rules"
-          value={rulesText}
-          onChange={(e) => setRulesText(e.target.value)}
-          rows={6}
-          placeholder={'Max Drawdown: 6%\nDaily Drawdown: 5%\nProfit Target: 10%'}
-          className={`${inputClass} resize-none`}
-        />
+        <div className="flex items-center justify-between mb-3">
+          <label className={`${labelClass} mb-0`}>Rules</label>
+          <button
+            type="button"
+            onClick={() =>
+              setRules((rs) => [...rs, { color: 'green', text: '' }])
+            }
+            className="font-body text-xs tracking-wider text-gold hover:text-gold-light uppercase"
+          >
+            + Add Rule
+          </button>
+        </div>
+        <p className="font-body text-[11px] text-wool-muted/60 mb-3 leading-relaxed">
+          Pick a candle colour for each rule. Use{' '}
+          <span className="text-[hsl(150,60%,40%)]">green</span> for
+          trader-positive bullets (profit splits, no targets, weekend
+          trading) and <span className="text-[hsl(3,52%,46%)]">red</span> for
+          restrictions or risks (drawdown limits, 14-day rules, consistency
+          rules). The colour shows next to each rule on the public Programs
+          page.
+        </p>
+        {rules.length === 0 && (
+          <p className="font-accent text-sm text-wool-muted/70 italic mb-3">
+            No rules yet. Click <span className="text-gold">+ Add Rule</span>{' '}
+            to add the first one.
+          </p>
+        )}
+        <div className="space-y-2">
+          {rules.map((rule, i) => (
+            <div
+              key={i}
+              className="border border-gold/15 bg-pine/40 p-3 rounded-sm flex items-center gap-3"
+            >
+              {/* Green / Red segmented toggle */}
+              <div
+                role="group"
+                aria-label={`Rule ${i + 1} colour`}
+                className="flex items-stretch border border-gold/20 rounded-sm overflow-hidden shrink-0"
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    setRules((rs) =>
+                      rs.map((r, idx) =>
+                        idx === i ? { ...r, color: 'green' } : r,
+                      ),
+                    )
+                  }
+                  aria-pressed={rule.color === 'green'}
+                  title="Trader-positive rule"
+                  className={`px-3 py-2 font-body text-[10px] tracking-[0.2em] uppercase transition-colors ${
+                    rule.color === 'green'
+                      ? 'bg-[hsl(150,60%,40%)]/15 text-[hsl(150,60%,55%)]'
+                      : 'text-wool-muted/60 hover:text-wool-muted'
+                  }`}
+                >
+                  Green
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setRules((rs) =>
+                      rs.map((r, idx) =>
+                        idx === i ? { ...r, color: 'red' } : r,
+                      ),
+                    )
+                  }
+                  aria-pressed={rule.color === 'red'}
+                  title="Restriction or risk"
+                  className={`px-3 py-2 font-body text-[10px] tracking-[0.2em] uppercase transition-colors border-l border-gold/20 ${
+                    rule.color === 'red'
+                      ? 'bg-[hsl(3,52%,46%)]/15 text-[hsl(3,52%,60%)]'
+                      : 'text-wool-muted/60 hover:text-wool-muted'
+                  }`}
+                >
+                  Red
+                </button>
+              </div>
+
+              {/* Rule text */}
+              <input
+                type="text"
+                value={rule.text}
+                onChange={(e) =>
+                  setRules((rs) =>
+                    rs.map((r, idx) =>
+                      idx === i ? { ...r, text: e.target.value } : r,
+                    ),
+                  )
+                }
+                placeholder={
+                  rule.color === 'red'
+                    ? 'e.g. Daily Drawdown: 5%'
+                    : 'e.g. Base Profit Split: 80%'
+                }
+                maxLength={240}
+                className={`${smallInputClass} flex-1`}
+              />
+
+              {/* Reorder up/down */}
+              <div className="flex flex-col gap-0.5 shrink-0">
+                <button
+                  type="button"
+                  disabled={i === 0}
+                  onClick={() =>
+                    setRules((rs) => {
+                      if (i === 0) return rs;
+                      const next = [...rs];
+                      [next[i - 1], next[i]] = [next[i], next[i - 1]];
+                      return next;
+                    })
+                  }
+                  className="w-6 h-5 font-body text-[10px] text-wool-muted hover:text-gold disabled:opacity-30 disabled:cursor-not-allowed border border-gold/20 rounded-sm flex items-center justify-center leading-none"
+                  title="Move up"
+                  aria-label="Move rule up"
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  disabled={i === rules.length - 1}
+                  onClick={() =>
+                    setRules((rs) => {
+                      if (i === rs.length - 1) return rs;
+                      const next = [...rs];
+                      [next[i + 1], next[i]] = [next[i], next[i + 1]];
+                      return next;
+                    })
+                  }
+                  className="w-6 h-5 font-body text-[10px] text-wool-muted hover:text-gold disabled:opacity-30 disabled:cursor-not-allowed border border-gold/20 rounded-sm flex items-center justify-center leading-none"
+                  title="Move down"
+                  aria-label="Move rule down"
+                >
+                  ▼
+                </button>
+              </div>
+
+              {/* Delete */}
+              <button
+                type="button"
+                onClick={() =>
+                  setRules((rs) => rs.filter((_, idx) => idx !== i))
+                }
+                className="font-body text-xs tracking-wider text-heritage hover:text-heritage/70 uppercase px-2 shrink-0"
+                title="Remove this rule"
+                aria-label="Remove rule"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div>

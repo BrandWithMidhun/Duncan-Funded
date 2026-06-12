@@ -380,6 +380,12 @@ export interface ProgramAddon {
   group?: string;
 }
 
+/** Each rule has an explicit color so the trader-facing card can show
+ *  green for trader-positive bullets and red for restrictions. Legacy
+ *  rows in the DB may still hold raw strings; the form normalises
+ *  those to green objects on load. */
+export type ProgramRule = { color: 'green' | 'red'; text: string };
+
 export interface Program {
   id: string;
   slug: string;
@@ -389,7 +395,9 @@ export interface Program {
   platforms: string[];
   sizes: number[];
   prices: Record<number, number>;
-  rules: string[];
+  // The API returns colored objects after the backend migration, but
+  // the type accepts strings too for any not-yet-migrated row.
+  rules: (ProgramRule | string)[];
   addons: ProgramAddon[];
   order: number;
 }
