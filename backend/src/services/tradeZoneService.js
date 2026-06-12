@@ -355,3 +355,40 @@ export async function renameMenuLabelIfNeeded() {
   ]);
   return { renamed: true };
 }
+
+/**
+ * One-shot migration: in a previous iteration we seeded each tool with
+ * a tool-specific launch label ("Open Dashboard", "Open Calendar", …).
+ * We've since simplified to a uniform "Launch" button. Reset any row
+ * that still has one of the deprecated labels — leave anything else
+ * alone so admin's custom labels are preserved.
+ *
+ * Idempotent: once all rows have been reset, no rows match and this
+ * no-ops on subsequent boots.
+ */
+export async function resetDeprecatedLaunchLabels() {
+  const deprecated = [
+    'Open Dashboard',
+    'Open Calendar',
+    'Open Sizer',
+    'Open Journal',
+    'Browse Library',
+    'Open Console',
+  ];
+  let total = 0;
+  for (const label of deprecated) {
+    const row = await get(
+      `SELECT COUNT(*) AS n FROM trade_zone_tools WHERE launch_label = ?`,
+      [label],
+    );
+    const n = Number(row?.n || 0);
+    if (n > 0) {
+      await run(
+        `UPDATE trade_zone_tools SET launch_label = 'Launch', "updatedAt" = ? WHERE launch_label = ?`,
+        [now(), label],
+      );
+      total += n;
+    }
+  }
+  return { reset: total };
+}

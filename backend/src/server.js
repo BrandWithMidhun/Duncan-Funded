@@ -14,6 +14,7 @@ import {
   seedIfEmpty as autoSeedTradeZone,
   backfillSlugsIfMissing as backfillTradeZoneSlugs,
   backfillDetailContentIfMissing as backfillTradeZoneDetail,
+  resetDeprecatedLaunchLabels as resetTradeZoneLabels,
   renameMenuLabelIfNeeded as renameTradeZoneMenuLabel,
 } from './services/tradeZoneService.js';
 
@@ -207,6 +208,15 @@ initDb()
       if (r.patched) console.log(`✓ Backfilled detail content on ${r.patched} Trader Arsenal tool(s).`);
     } catch (e) {
       console.warn('Trade Zone detail backfill skipped:', e.message);
+    }
+
+    // One-shot: reset launch labels from the old per-tool variants
+    // back to the uniform "Launch". Admin overrides are preserved.
+    try {
+      const r = await resetTradeZoneLabels();
+      if (r.reset) console.log(`✓ Reset ${r.reset} deprecated Trader Arsenal launch label(s) to "Launch".`);
+    } catch (e) {
+      console.warn('Trade Zone launch label reset skipped:', e.message);
     }
 
     // One-shot rename: nav menu "Trade Zone" → "Trader Arsenal".

@@ -15,28 +15,20 @@ export async function generateMetadata(): Promise<Metadata> {
 const isExternal = (href: string) => /^https?:\/\//i.test(href);
 
 /**
- * Build the destination for each tool's Launch button.
- *
- * Behaviour:
- *   1. If admin set an explicit launchUrl on the tool, use that (it
- *      wins — internal path or external URL both supported).
- *   2. Otherwise, link to the internal detail page /trade-zone/<slug>.
- *   3. If the tool has no slug at all (shouldn't happen after the
- *      backfill migration, but defensive), return empty and hide
- *      the button rather than render a broken link.
+ * Every card's LAUNCH button points to /programs by default. Admin
+ * can override per-tool in /admin/trade-zone — set Launch URL to any
+ * internal path (/something) or external URL (https://...). This is
+ * the override-only model: the default destination is always /programs.
  */
-function buildLaunchTarget(tool: {
-  slug: string;
-  launchUrl: string;
-}): { href: string; external: boolean } | null {
-  const explicit = tool.launchUrl?.trim();
+function buildLaunchTarget(launchUrl: string): {
+  href: string;
+  external: boolean;
+} {
+  const explicit = launchUrl?.trim();
   if (explicit) {
     return { href: explicit, external: isExternal(explicit) };
   }
-  if (tool.slug) {
-    return { href: `/trade-zone/${tool.slug}`, external: false };
-  }
-  return null;
+  return { href: '/programs', external: false };
 }
 
 export default async function TraderArsenalPage() {
@@ -66,8 +58,9 @@ export default async function TraderArsenalPage() {
       />
       <Navbar />
 
-      {/* Hero — ported from the Lovable design refresh */}
-      <section className="relative pt-40 pb-20 overflow-hidden">
+      {/* Hero — matches the Lovable design refresh: crest + eyebrow +
+          big heading + italic tagline + descriptive body line. */}
+      <section className="relative pt-40 pb-16 overflow-hidden">
         <div className="absolute inset-0">
           <TradingBackground />
           <div className="absolute inset-0 tartan-texture opacity-10" />
@@ -80,7 +73,7 @@ export default async function TraderArsenalPage() {
             alt="Duncan Crest"
             width={192}
             height={192}
-            className="h-24 w-24 mx-auto mb-6 object-contain"
+            className="h-20 w-20 mx-auto mb-6 object-contain"
             priority
           />
           <p className="font-body text-xs md:text-sm tracking-[0.4em] text-gold/80 uppercase mb-4">
@@ -89,59 +82,69 @@ export default async function TraderArsenalPage() {
           <h1 className="font-display text-5xl md:text-7xl gold-text-gradient font-bold tracking-wider mb-6">
             {heading}
           </h1>
-          <p className="font-accent text-xl md:text-2xl text-wool-muted italic max-w-3xl mx-auto mb-6">
+          <p className="font-accent text-xl md:text-2xl text-wool-muted italic max-w-3xl mx-auto mb-4">
             {tagline}
           </p>
-          <p className="font-body text-base md:text-lg text-wool-muted/90 max-w-3xl mx-auto leading-relaxed">
+          <p className="font-body text-base text-wool-muted/90 max-w-3xl mx-auto leading-relaxed">
             {subtitle}
           </p>
         </div>
       </section>
 
-      {/* Tool grid — dynamic from /api/trade-zone/tools (admin-managed) */}
-      <section className="py-16 container mx-auto px-6">
+      {/* Tool grid. Every card has a LAUNCH button -> /programs by
+          default, overridable per-tool in admin via launchUrl. */}
+      <section className="py-12 container mx-auto px-6">
         {tools.length === 0 ? (
           <p className="font-body text-wool-muted text-center max-w-xl mx-auto">
             The Trader Arsenal is being prepared. Check back soon.
           </p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {tools.map((tool) => {
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+            {tools.map((tool, i) => {
               const Icon = pickToolIcon(tool.iconKey);
-              const target = buildLaunchTarget(tool);
+              const target = buildLaunchTarget(tool.launchUrl);
+              // Cycle background tints across cards in 3s, matching
+              // the Lovable design's pattern (highland / navy / heritage).
+              const tint =
+                i % 3 === 0
+                  ? 'bg-highland/40'
+                  : i % 3 === 1
+                    ? 'bg-navy/40'
+                    : 'bg-heritage/20';
               return (
                 <div
                   key={tool.id}
-                  className="border border-gold/20 bg-highland/40 backdrop-blur-sm p-8 rounded-sm tartan-texture flex flex-col"
+                  className={`flex flex-col border border-gold/20 backdrop-blur-sm p-6 rounded-sm tartan-texture hover:border-gold/50 transition-all ${tint}`}
                 >
-                  <Icon
-                    className="h-8 w-8 text-gold mb-5"
-                    strokeWidth={1.25}
-                  />
-                  <h2 className="font-display text-xl md:text-2xl gold-text-gradient font-bold tracking-wider mb-3 uppercase">
-                    {tool.name}
-                  </h2>
-                  <p className="font-body text-wool-muted leading-relaxed mb-6 flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Icon
+                      className="w-6 h-6 text-gold"
+                      strokeWidth={1.25}
+                    />
+                    <h2 className="font-display text-xl gold-text-gradient font-bold tracking-wider uppercase">
+                      {tool.name}
+                    </h2>
+                  </div>
+                  <p className="font-body text-wool-muted leading-relaxed flex-1 mb-6">
                     {tool.description}
                   </p>
-                  {target &&
-                    (target.external ? (
-                      <a
-                        href={target.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-body text-xs tracking-[0.25em] text-gold tartan-button px-5 py-2.5 rounded-sm hover:text-gold-light transition-all duration-300 uppercase text-center"
-                      >
-                        {tool.launchLabel}
-                      </a>
-                    ) : (
-                      <Link
-                        href={target.href}
-                        className="font-body text-xs tracking-[0.25em] text-gold tartan-button px-5 py-2.5 rounded-sm hover:text-gold-light transition-all duration-300 uppercase text-center"
-                      >
-                        {tool.launchLabel}
-                      </Link>
-                    ))}
+                  {target.external ? (
+                    <a
+                      href={target.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="self-stretch text-center font-body text-xs tracking-[0.25em] text-gold tartan-button px-5 py-3 rounded-sm hover:text-gold-light transition-all duration-300 uppercase"
+                    >
+                      {tool.launchLabel || 'Launch'}
+                    </a>
+                  ) : (
+                    <Link
+                      href={target.href}
+                      className="self-stretch text-center font-body text-xs tracking-[0.25em] text-gold tartan-button px-5 py-3 rounded-sm hover:text-gold-light transition-all duration-300 uppercase"
+                    >
+                      {tool.launchLabel || 'Launch'}
+                    </Link>
+                  )}
                 </div>
               );
             })}
