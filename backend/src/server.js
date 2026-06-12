@@ -9,7 +9,11 @@ import rateLimit from 'express-rate-limit';
 import apiRoutes from './routes/api.js';
 import { notFound, errorHandler } from './middleware/index.js';
 import { initDb, closeDb } from './lib/db.js';
-import { autoSeedIfEmpty as autoSeedPrograms } from './services/programService.js';
+import {
+  autoSeedIfEmpty as autoSeedPrograms,
+  migrateRulesFormat as migrateProgramRules,
+  refreshDefaultProgramRules,
+} from './services/programService.js';
 import {
   seedIfEmpty as autoSeedTradeZone,
   backfillSlugsIfMissing as backfillTradeZoneSlugs,
@@ -184,6 +188,26 @@ initDb()
       if (r.seeded) console.log(`✓ Auto-seeded ${r.seeded} default programs.`);
     } catch (e) {
       console.warn('Program auto-seed skipped:', e.message);
+    }
+
+    // Convert any string-format `rules` arrays to the new
+    // { color, text } shape. Idempotent — already-converted rows
+    // are skipped.
+    try {
+      const r = await migrateProgramRules();
+      if (r.converted) console.log(`✓ Converted ${r.converted} program(s) to colored rules format.`);
+    } catch (e) {
+      console.warn('Program rule format migration skipped:', e.message);
+    }
+
+    // Refresh the rules on the 8 default programs to the richer
+    // colored rule lists from defaultPrograms.js — but only when the
+    // row still looks unmodified from the original seed.
+    try {
+      const r = await refreshDefaultProgramRules();
+      if (r.refreshed) console.log(`✓ Refreshed rules on ${r.refreshed} default program(s).`);
+    } catch (e) {
+      console.warn('Default program rule refresh skipped:', e.message);
     }
 
     // Trader Arsenal tools — same idempotent pattern.

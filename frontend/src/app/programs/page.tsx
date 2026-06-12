@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Navbar } from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import TradingBackground from '@/components/TradingBackground';
+import CapitalFundingOverview from '@/components/CapitalFundingOverview';
 import ProgramsConfigurator from '@/components/ProgramsConfigurator';
 import { JsonLd, breadcrumbSchema, pageMetadata } from '@/lib/seo';
 
@@ -57,6 +58,10 @@ export default function ProgramsPage() {
           </p>
         </div>
       </section>
+
+      {/* Capital Funding Overview — asset class cards, add-ons grid,
+          evaluation + scaling explainer, supported platforms. */}
+      <CapitalFundingOverview />
 
       <ProgramsConfigurator />
       <Footer />

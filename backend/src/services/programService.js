@@ -98,7 +98,26 @@ function validateInput(input, { partial = false } = {}) {
   }
   if (input.rules !== undefined) {
     if (!Array.isArray(input.rules)) throw new ApiError(400, 'rules must be an array');
-    out.rules = input.rules.map((r) => String(r).slice(0, 200)).filter(Boolean);
+    // Rules can come in two shapes:
+    //   - { color: 'green' | 'red', text: string }   (new, preferred)
+    //   - string                                      (legacy)
+    // Always normalize to the object shape on the way in. Unknown
+    // colors default to 'green'. Empty/whitespace text is dropped.
+    out.rules = input.rules
+      .map((r) => {
+        if (typeof r === 'string') {
+          const t = r.trim().slice(0, 240);
+          return t ? { color: 'green', text: t } : null;
+        }
+        if (r && typeof r === 'object' && typeof r.text === 'string') {
+          const t = r.text.trim().slice(0, 240);
+          if (!t) return null;
+          const color = r.color === 'red' ? 'red' : 'green';
+          return { color, text: t };
+        }
+        return null;
+      })
+      .filter(Boolean);
   }
   if (input.addons !== undefined) {
     if (!Array.isArray(input.addons)) throw new ApiError(400, 'addons must be an array');
@@ -227,4 +246,173 @@ export async function autoSeedIfEmpty() {
     );
   }
   return { seeded: i };
+}
+
+/**
+ * Migration: convert any program whose `rules` is still an array of
+ * raw strings into the new `{ color, text }` shape. Idempotent —
+ * rules already in the new format are left alone.
+ *
+ * Strings are converted to green by default (the most common case in
+ * the old format). After this migration, the refresh-default-rules
+ * pass below overwrites the 8 default programs with the richer
+ * colored rules from defaultPrograms.js.
+ */
+export async function migrateRulesFormat() {
+  const rows = await all('SELECT id, rules FROM programs');
+  let converted = 0;
+  for (const row of rows) {
+    let parsed = row.rules;
+    if (typeof parsed === 'string') {
+      try {
+        parsed = JSON.parse(parsed);
+      } catch {
+        continue;
+      }
+    }
+    if (!Array.isArray(parsed) || parsed.length === 0) continue;
+    const looksLegacy = parsed.every((r) => typeof r === 'string');
+    if (!looksLegacy) continue;
+
+    const next = parsed
+      .map((s) => String(s).trim().slice(0, 240))
+      .filter(Boolean)
+      .map((text) => ({ color: 'green', text }));
+
+    await run(`UPDATE programs SET rules = ?, "updatedAt" = ? WHERE id = ?`, [
+      JSON.stringify(next),
+      now(),
+      row.id,
+    ]);
+    converted += 1;
+  }
+  return { converted };
+}
+
+/**
+ * One-shot migration: refresh the rule list on each of our 8 default
+ * programs from defaultPrograms.js.
+ *
+ * We only update a row when its current rules look like the OLD
+ * default seed (5-7 simple green entries, all from our original
+ * default set). This catches production rows that were seeded before
+ * the colored-rules format existed without touching custom rules an
+ * admin may have written.
+ *
+ * Heuristic — current rules count <= 7 AND all texts match the old
+ * default rule list for that program's slug. If admin has added even
+ * one custom rule or changed wording, the heuristic fails and we
+ * leave the row alone.
+ */
+const OLD_DEFAULT_RULES_BY_SLUG = {
+  'forex-one-step': new Set([
+    'Max Drawdown: 6%',
+    'Daily Drawdown: 5%',
+    'Profit Target: 10%',
+    'Base Profit Split: 80%',
+    'Choose from multiple trading platforms',
+  ]),
+  'forex-two-step': new Set([
+    'Max Drawdown: 7%',
+    'Daily Drawdown: 5%',
+    'Profit Target: 8% (Phase 1), 5% (Phase 2)',
+    'Base Profit Split: 85%',
+    'Choose from multiple trading platforms',
+  ]),
+  'instant-funded-forex': new Set([
+    'Max Drawdown: 8% (Trailing)',
+    'Daily Max Loss Limit: 5%',
+    'No Profit Target',
+    'Base Profit Split: 80%',
+    'Complete KYC and sign the trader contract to become eligible for withdrawals',
+  ]),
+  'instant-funded-forex-lite': new Set([
+    'Max Drawdown: 5% (Trailing)',
+    'Daily Max Loss Limit: 3%',
+    'No Profit Target',
+    'Base Profit Split: 80%',
+    'Consistency Requirement: 25%',
+    'Profit Buffer: 3%',
+  ]),
+  'crypto-one-step': new Set([
+    '1-Step Evaluation',
+    'Profit Target: 10%',
+    'Max Drawdown: 6%',
+    'Daily Drawdown: 4%',
+    'Base Profit Split: 80%',
+    '24/7 Crypto Markets',
+  ]),
+  'crypto-two-step': new Set([
+    '2-Phase Evaluation',
+    'Profit Target: 8% (Phase 1), 5% (Phase 2)',
+    'Max Daily Loss: 5%',
+    'Max Total Loss: 10%',
+    'Base Profit Split: 85%',
+    'Major + Altcoin Pairs, Weekend Trading',
+  ]),
+  'futures-assessment': new Set([
+    'Single-Phase Evaluation',
+    'Trailing Drawdown',
+    'CME, COMEX, NYMEX',
+    'Base Profit Split: 80%',
+    'Payouts Every 30 Days',
+    'Reset Available',
+  ]),
+  'equities-one-step': new Set([
+    'One Step Equities Assessment',
+    'Profit Target: 8%',
+    'Max Drawdown: 5%',
+    'Base Profit Split: 80%',
+    'US Equities & ETFs',
+    'Pre/Post Market',
+  ]),
+};
+
+export async function refreshDefaultProgramRules() {
+  const { DEFAULT_PROGRAMS } = await import('../data/defaultPrograms.js');
+  let refreshed = 0;
+
+  for (const def of DEFAULT_PROGRAMS) {
+    const oldSet = OLD_DEFAULT_RULES_BY_SLUG[def.slug];
+    if (!oldSet) continue;
+
+    const row = await get('SELECT id, rules FROM programs WHERE slug = ?', [def.slug]);
+    if (!row) continue;
+
+    let current = row.rules;
+    if (typeof current === 'string') {
+      try {
+        current = JSON.parse(current);
+      } catch {
+        continue;
+      }
+    }
+    if (!Array.isArray(current) || current.length === 0) continue;
+
+    // Get the plain text of each current rule (handles both legacy
+    // string-format and post-migration object-format).
+    const currentTexts = current
+      .map((r) => (typeof r === 'string' ? r : r?.text))
+      .filter(Boolean)
+      .map((t) => String(t).trim());
+
+    // Only refresh when the row still looks like the old default —
+    // every rule must be one we originally seeded, and the count
+    // must be in the old range.
+    const isUnmodifiedDefault =
+      currentTexts.length > 0 &&
+      currentTexts.length <= 8 &&
+      currentTexts.every((t) => oldSet.has(t));
+
+    if (!isUnmodifiedDefault) continue;
+
+    await run(`UPDATE programs SET rules = ?, "updatedAt" = ? WHERE id = ?`, [
+      JSON.stringify(def.rules),
+      now(),
+      row.id,
+    ]);
+    refreshed += 1;
+  }
+
+  return { refreshed };
 }

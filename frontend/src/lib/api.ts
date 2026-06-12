@@ -370,6 +370,12 @@ export interface PublicProgramAddon {
   group?: string;
 }
 
+/** Rules support both the new `{ color, text }` shape and the legacy
+ *  raw-string shape so we can render rows that haven't been migrated
+ *  yet without crashing. The configurator normalises both at render
+ *  time. */
+export type PublicProgramRule = { color: 'green' | 'red'; text: string } | string;
+
 export interface PublicProgram {
   id: string;
   slug: string;
@@ -379,7 +385,7 @@ export interface PublicProgram {
   platforms: string[];
   sizes: number[];
   prices: Record<string, number>;
-  rules: string[];
+  rules: PublicProgramRule[];
   addons: PublicProgramAddon[];
   order: number;
 }

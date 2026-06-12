@@ -1,7 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
-import Image from 'next/image';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { TradingCandle } from './TradingBackground';
 import { trackEvent } from './AnalyticsTracker';
@@ -11,14 +10,42 @@ import {
   getPrograms,
   type SiteSettings,
   type PublicProgram,
+  type PublicProgramRule,
 } from '@/lib/api';
+
+/**
+ * Programs configurator — informational version.
+ *
+ * Previous incarnations of this component had a live pricing
+ * calculator: clickable sizes, platforms, and toggleable add-ons that
+ * recalculated a total in real-time. The new design (Lovable Programs.tsx)
+ * drops that interactivity — sizes / platforms / add-ons render as
+ * read-only chips, the submit button is just "Start Trading", and the
+ * actual checkout happens on the external broker dashboard.
+ *
+ * What's still interactive:
+ *   - Selecting which program's rules to display (radio list)
+ *   - The Terms & Conditions agreement checkbox
+ *   - The Start Trading button (opens the broker dashboard CTA URL)
+ *
+ * Data flow:
+ *   - Pull live programs from /api/programs once mounted; render the
+ *     hardcoded fallback until the API resolves so SSR / first paint
+ *     is never empty.
+ *   - Rules support both legacy `string[]` and new `{color, text}[]`
+ *     shapes — `toRules()` normalises at render time.
+ *   - `?p=<id|slug>` query param deep-links to a specific program
+ *     (used by the chat widget action chips).
+ */
 
 type Addon = {
   id: string;
   label: string;
-  percent: number; // percent of base plan price
-  group?: string; // mutually exclusive within a group
+  percent: number;
+  group?: string;
 };
+
+type Rule = { color: 'green' | 'red'; text: string };
 
 type Program = {
   id: string;
@@ -26,25 +53,45 @@ type Program = {
   platforms: string[];
   sizes: number[];
   prices: Record<number, number>;
-  rules: string[];
+  rules: PublicProgramRule[];
   addons: Addon[];
 };
 
+/** Normalise rules into the colored shape for rendering. */
+function toRules(raw: PublicProgramRule[]): Rule[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((r): Rule | null => {
+      if (typeof r === 'string') {
+        const t = r.trim();
+        return t ? { color: 'green', text: t } : null;
+      }
+      if (r && typeof r === 'object' && typeof r.text === 'string') {
+        const t = r.text.trim();
+        if (!t) return null;
+        return { color: r.color === 'red' ? 'red' : 'green', text: t };
+      }
+      return null;
+    })
+    .filter((r): r is Rule => r !== null);
+}
+
+// ---- Fallback program list ----
+// Used until /api/programs responds. Kept in sync with the backend
+// defaultPrograms.js so SSR shows real content even if the API is
+// down. If you edit one, edit both.
 const FOREX_ADDONS: Addon[] = [
   { id: 'remove-lock', label: 'Remove Lock on Payout', percent: 25 },
   { id: 'payout-protector', label: 'Payout Protector', percent: 25 },
 ];
-
 const INSTANT_ADDONS: Addon[] = [
   { id: 'profit-share', label: 'Profit Share', percent: 20 },
   { id: 'hold-weekend', label: 'Hold Weekend', percent: 10 },
   { id: 'payout-protector', label: 'Payout Protector', percent: 25 },
 ];
-
 const PAYOUT_ONLY_ADDONS: Addon[] = [
   { id: 'payout-protector', label: 'Payout Protector', percent: 25 },
 ];
-
 const EQUITIES_ADDONS: Addon[] = [
   { id: 'profit-share', label: 'Profit Share', percent: 15 },
   { id: 'remove-lock', label: 'Remove Lock on Payout', percent: 25 },
@@ -53,7 +100,7 @@ const EQUITIES_ADDONS: Addon[] = [
   { id: 'payout-protector', label: 'Payout Protector', percent: 25 },
 ];
 
-const programs: Program[] = [
+const fallbackPrograms: Program[] = [
   {
     id: 'forex-one-step',
     name: 'Forex One Step Assessment',
@@ -61,11 +108,13 @@ const programs: Program[] = [
     sizes: [5000, 10000, 25000, 50000, 100000, 250000, 400000],
     prices: { 5000: 44, 10000: 95, 25000: 240, 50000: 455, 100000: 910, 250000: 2250, 400000: 4000 },
     rules: [
-      'Max Drawdown: 6%',
-      'Daily Drawdown: 5%',
-      'Profit Target: 10%',
-      'Base Profit Split: 80%',
-      'Choose from multiple trading platforms',
+      { color: 'green', text: 'Base Profit Split: 80%' },
+      { color: 'green', text: 'Profit Target: 10%' },
+      { color: 'red', text: 'Daily Drawdown: 5%' },
+      { color: 'red', text: 'Max Drawdown Fixed: 6%' },
+      { color: 'green', text: 'Choose from multiple platforms' },
+      { color: 'green', text: 'Choose Add-on' },
+      { color: 'red', text: '14-Day Withdraw Rule' },
     ],
     addons: FOREX_ADDONS,
   },
@@ -76,11 +125,13 @@ const programs: Program[] = [
     sizes: [5000, 10000, 25000, 50000, 100000, 250000, 400000],
     prices: { 5000: 30, 10000: 60, 25000: 145, 50000: 263, 100000: 525, 250000: 1500, 400000: 2600 },
     rules: [
-      'Max Drawdown: 7%',
-      'Daily Drawdown: 5%',
-      'Profit Target: 8% (Phase 1), 5% (Phase 2)',
-      'Base Profit Split: 85%',
-      'Choose from multiple trading platforms',
+      { color: 'green', text: 'Base Profit Split: 80%' },
+      { color: 'green', text: 'Profit Target: 8% (Phase 1), 5% (Phase 2)' },
+      { color: 'red', text: 'Daily Drawdown: 5%' },
+      { color: 'red', text: 'Max Drawdown Fixed: 7%' },
+      { color: 'green', text: 'Choose from multiple platforms' },
+      { color: 'green', text: 'Choose Add-on' },
+      { color: 'red', text: '14-Day Withdraw Rule' },
     ],
     addons: FOREX_ADDONS,
   },
@@ -91,11 +142,18 @@ const programs: Program[] = [
     sizes: [5000, 10000, 25000, 50000, 100000],
     prices: { 5000: 250, 10000: 500, 25000: 1350, 50000: 3000, 100000: 5750 },
     rules: [
-      'Max Drawdown: 8% (Trailing)',
-      'Daily Max Loss Limit: 5%',
-      'No Profit Target',
-      'Base Profit Split: 80%',
-      'Complete KYC and sign the trader contract to become eligible for withdrawals',
+      { color: 'green', text: 'Base Profit Split: 80%' },
+      { color: 'green', text: 'No Profit Target' },
+      { color: 'green', text: 'Minimum Withdraw 1% — $5k minimum $100' },
+      { color: 'green', text: 'No minimum trading days' },
+      { color: 'green', text: 'No minimum profitable day' },
+      { color: 'green', text: 'No 14-Day Withdrawal Rule' },
+      { color: 'green', text: 'No Consistency Rule' },
+      { color: 'red', text: 'Daily Drawdown: 5%' },
+      { color: 'red', text: 'Max Drawdown: 8% (Trailing)' },
+      { color: 'green', text: 'Choose from multiple platforms' },
+      { color: 'green', text: 'Choose Add-on' },
+      { color: 'green', text: 'Complete KYC and sign the trader contract' },
     ],
     addons: INSTANT_ADDONS,
   },
@@ -106,12 +164,17 @@ const programs: Program[] = [
     sizes: [5000, 10000, 25000, 50000, 100000],
     prices: { 5000: 85, 10000: 145, 25000: 260, 50000: 400, 100000: 700 },
     rules: [
-      'Max Drawdown: 5% (Trailing)',
-      'Daily Max Loss Limit: 3%',
-      'No Profit Target',
-      'Base Profit Split: 80%',
-      'Consistency Requirement: 25%',
-      'Profit Buffer: 3%',
+      { color: 'green', text: 'Base Profit Split: 80%' },
+      { color: 'green', text: 'No Profit Target' },
+      { color: 'green', text: 'Minimum Withdraw 1% — $5k minimum $100' },
+      { color: 'green', text: 'No minimum trading days' },
+      { color: 'green', text: 'No minimum profitable day' },
+      { color: 'green', text: 'No 14-Day Withdrawal Rule' },
+      { color: 'red', text: 'Daily Drawdown: 3%' },
+      { color: 'red', text: 'Max Drawdown: 5% (Trailing)' },
+      { color: 'green', text: 'Choose from multiple platforms' },
+      { color: 'green', text: 'Choose Add-on' },
+      { color: 'green', text: 'Profit Buffer: 3%' },
     ],
     addons: INSTANT_ADDONS,
   },
@@ -122,12 +185,15 @@ const programs: Program[] = [
     sizes: [5000, 10000, 25000, 50000, 100000, 200000],
     prices: { 5000: 55, 10000: 115, 25000: 300, 50000: 625, 100000: 1200, 200000: 2250 },
     rules: [
-      '1-Step Evaluation',
-      'Profit Target: 10%',
-      'Max Drawdown: 6%',
-      'Daily Drawdown: 4%',
-      'Base Profit Split: 80%',
-      '24/7 Crypto Markets',
+      { color: 'green', text: 'Base Profit Split: 90%' },
+      { color: 'green', text: 'Profit Target: 9%' },
+      { color: 'green', text: 'Daily Cap Limit: 3% (profit and loss)' },
+      { color: 'red', text: 'Max Drawdown Fixed: 6%' },
+      { color: 'green', text: 'Choose from multiple platforms' },
+      { color: 'green', text: 'Choose Add-on' },
+      { color: 'green', text: '24/7 Crypto Markets' },
+      { color: 'green', text: 'Stable Coin + Altcoin Pairs' },
+      { color: 'red', text: '14-Day Withdraw Rule' },
     ],
     addons: PAYOUT_ONLY_ADDONS,
   },
@@ -138,12 +204,16 @@ const programs: Program[] = [
     sizes: [5000, 10000, 25000, 50000, 100000, 200000],
     prices: { 5000: 45, 10000: 100, 25000: 250, 50000: 500, 100000: 995, 200000: 2000 },
     rules: [
-      '2-Phase Evaluation',
-      'Profit Target: 8% (Phase 1), 5% (Phase 2)',
-      'Max Daily Loss: 5%',
-      'Max Total Loss: 10%',
-      'Base Profit Split: 85%',
-      'Major + Altcoin Pairs, Weekend Trading',
+      { color: 'green', text: 'Base Profit Split: 90%' },
+      { color: 'green', text: 'Profit Target: 6% (Phase 1), 9% (Phase 2)' },
+      { color: 'green', text: 'Daily Cap Limit: 3% (profit and loss)' },
+      { color: 'red', text: 'Max Drawdown Fixed: 9% (both phases)' },
+      { color: 'green', text: 'Choose from multiple platforms' },
+      { color: 'green', text: 'Choose Add-on' },
+      { color: 'green', text: '24/7 Crypto Markets' },
+      { color: 'green', text: 'Stable Coin + Altcoin Pairs' },
+      { color: 'green', text: 'Weekend Trading' },
+      { color: 'red', text: '14-Day Withdraw Rule' },
     ],
     addons: PAYOUT_ONLY_ADDONS,
   },
@@ -154,28 +224,35 @@ const programs: Program[] = [
     sizes: [25000, 50000, 100000, 150000],
     prices: { 25000: 305, 50000: 604, 100000: 1150, 150000: 1500 },
     rules: [
-      'Single-Phase Evaluation',
-      'Trailing Drawdown',
-      'CME, COMEX, NYMEX',
-      'Base Profit Split: 80%',
-      'Payouts Every 30 Days',
-      'Reset Available',
+      { color: 'green', text: '4-Phase Assessment Program' },
+      { color: 'green', text: 'Profit Target: Phase 1 - 10%, Phase 2 - 5%, Phase 3 - 3%, Funded - 0%' },
+      { color: 'red', text: 'Daily Drawdown: All Phases 5%' },
+      { color: 'red', text: 'Max Drawdown Fixed: Phase 1-3 6%, Funded 5% (Trailing)' },
+      { color: 'green', text: 'Choose from multiple platforms' },
+      { color: 'green', text: 'Choose Add-on' },
+      { color: 'red', text: 'Payouts per phase — must withdraw before advancing to the next phase' },
+      { color: 'green', text: 'Reset Available' },
+      { color: 'red', text: '14-Day Withdraw Rule' },
     ],
     addons: PAYOUT_ONLY_ADDONS,
   },
   {
     id: 'equities-one-step',
-    name: 'Equities One Step Assessment',
+    name: 'Equities',
     platforms: ['GooeyPro'],
     sizes: [5000, 10000, 25000, 50000, 100000, 200000],
     prices: { 5000: 55, 10000: 79, 25000: 179, 50000: 329, 100000: 649, 200000: 1499 },
     rules: [
-      'One Step Equities Assessment',
-      'Profit Target: 8%',
-      'Max Drawdown: 5%',
-      'Base Profit Split: 80%',
-      'US Equities & ETFs',
-      'Pre/Post Market',
+      { color: 'green', text: 'US Equities & ETFs' },
+      { color: 'green', text: 'Base Profit Split: 80%' },
+      { color: 'green', text: 'Profit Target: 8%' },
+      { color: 'red', text: 'Daily Drawdown: 2.5% (Trailing, Intraday)' },
+      { color: 'red', text: 'Daily Profit Cap: 2.5% (evaluation only — soft breach, resume next trading day)' },
+      { color: 'red', text: 'Max Drawdown Fixed: 3%' },
+      { color: 'red', text: 'Consistency Rule: 25% (funded only)' },
+      { color: 'red', text: 'Trading Window: 9:30 a.m. - 3:30 p.m. EST (Regular Sessions Only)' },
+      { color: 'green', text: 'Choose Add-on' },
+      { color: 'red', text: '14-Day Withdraw Rule' },
     ],
     addons: EQUITIES_ADDONS,
   },
@@ -185,23 +262,16 @@ const formatPrice = (n: number) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
 export default function ProgramsConfigurator() {
-  // The hardcoded `programs` array below acts as the fallback used until
-  // the API responds (or permanently if it never does).
   const [livePrograms, setLivePrograms] = useState<Program[] | null>(null);
-  const effectivePrograms = livePrograms ?? programs;
+  const effectivePrograms = livePrograms ?? fallbackPrograms;
   const fallbackInitialId = effectivePrograms[2]?.id ?? effectivePrograms[0]?.id ?? '';
   const [programId, setProgramId] = useState<string>(fallbackInitialId);
 
-  // Resolve current program from the effective list. Defaults to first
-  // if the previously-selected id no longer exists (admin deleted it, etc).
   const program = useMemo(
     () => effectivePrograms.find((p) => p.id === programId) ?? effectivePrograms[0],
     [effectivePrograms, programId],
   );
 
-  const [size, setSize] = useState<number>(program?.sizes[2] ?? program?.sizes[0] ?? 0);
-  const [platform, setPlatform] = useState<string>(program?.platforms[0] ?? '');
-  const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>({});
   const [agreed, setAgreed] = useState(false);
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
   const [notice, setNotice] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
@@ -211,7 +281,6 @@ export default function ProgramsConfigurator() {
     getSettings().then((s) => active && setSettings(s));
     getPrograms().then((list: PublicProgram[]) => {
       if (!active || list.length === 0) return;
-      // Map PublicProgram -> Program (adapter — server includes extra fields)
       const mapped: Program[] = list.map((p) => ({
         id: p.id,
         name: p.name,
@@ -230,10 +299,7 @@ export default function ProgramsConfigurator() {
       }));
       setLivePrograms(mapped);
 
-      // Honour a ?p= query param if present so chat action chips
-      // can deep-link the user to the exact program they tapped.
-      // Accepts both program id and slug (defensive — server might
-      // change which one it sends in the chip href).
+      // Deep-link via ?p=<id|slug> (used by chat action chips)
       let requested: Program | undefined;
       if (typeof window !== 'undefined') {
         const param = new URLSearchParams(window.location.search).get('p');
@@ -249,21 +315,9 @@ export default function ProgramsConfigurator() {
       const next = requested ?? mapped.find((p) => p.id === programId) ?? mapped[2] ?? mapped[0];
       if (next && next.id !== programId) {
         setProgramId(next.id);
-        setSize(next.sizes[2] ?? next.sizes[0] ?? 0);
-        setPlatform(next.platforms[0] ?? '');
-        setSelectedAddons({});
-      } else if (requested) {
-        // Same id requested as already set — still reset dependent state
-        // so the user sees a clean config for the deep-linked program.
-        setSize(requested.sizes[2] ?? requested.sizes[0] ?? 0);
-        setPlatform(requested.platforms[0] ?? '');
-        setSelectedAddons({});
       }
 
-      // If we arrived with ?p=, scroll the configurator into view so the
-      // user lands directly on the selected program.
       if (requested && typeof window !== 'undefined') {
-        // Small delay so the layout has the live programs rendered.
         setTimeout(() => {
           const el = document.getElementById('configurator');
           if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -282,31 +336,8 @@ export default function ProgramsConfigurator() {
     const next = effectivePrograms.find((p) => p.id === id);
     if (!next) return;
     setProgramId(id);
-    if (!next.sizes.includes(size)) setSize(next.sizes[Math.min(2, next.sizes.length - 1)] ?? 0);
-    if (!next.platforms.includes(platform)) setPlatform(next.platforms[0] ?? '');
-    setSelectedAddons({});
     trackEvent('program_selected', { program: next.name, programId: id });
   };
-
-  const toggleAddon = (addon: Addon) => {
-    setSelectedAddons((prev) => {
-      const isOn = !!prev[addon.id];
-      const next = { ...prev, [addon.id]: !isOn };
-      if (!isOn && addon.group) {
-        for (const a of program.addons) {
-          if (a.group === addon.group && a.id !== addon.id) next[a.id] = false;
-        }
-      }
-      return next;
-    });
-  };
-
-  const basePrice = program.prices[size] ?? 0;
-  const addonsPercent = program.addons.reduce(
-    (acc, a) => acc + (selectedAddons[a.id] ? a.percent : 0),
-    0,
-  );
-  const total = Math.round(basePrice * (1 + addonsPercent / 100));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -318,38 +349,54 @@ export default function ProgramsConfigurator() {
     trackEvent('signup_clicked', {
       program: program.name,
       programId: program.id,
-      size,
-      platform,
-      total,
+      source: 'programs_configurator',
     });
-    setNotice({
-      kind: 'ok',
-      msg: `Challenge configured: ${program.name} • ${formatPrice(size)} • ${platform} • ${formatPrice(total)}`,
-    });
+    setNotice({ kind: 'ok', msg: `Starting ${program.name} — opening the broker dashboard…` });
     if (/^https?:\/\//i.test(ctaUrl)) {
       window.open(ctaUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
+  const rules = toRules(program.rules);
+
   return (
-    <section className="relative pb-24">
-      <Image
-        src="/assets/duncan-crest.png"
-        alt=""
+    <section className="relative pt-10 pb-24 border-t border-gold/15">
+      {/* "Configure & Begin / Build Your Account" section header */}
+      <div className="container mx-auto px-6 relative z-10 mb-12 text-center">
+        <div className="flex items-center justify-center gap-4 mb-4">
+          <div className="w-12 h-px bg-gold/40" />
+          <span className="font-accent text-sm tracking-[0.3em] text-gold/70 italic uppercase">
+            Configure &amp; Begin
+          </span>
+          <div className="w-12 h-px bg-gold/40" />
+        </div>
+        <h2 className="font-display text-3xl md:text-4xl tracking-wider">
+          <span className="gold-text-gradient">Build Your</span>{' '}
+          <span className="text-foreground">Account</span>
+        </h2>
+      </div>
+
+      {/* Watermark crest — fixed bottom-left, near-invisible */}
+      <div
         aria-hidden
-        width={224}
-        height={307}
-        className="pointer-events-none select-none fixed left-6 bottom-6 w-40 md:w-56 h-auto opacity-[0.04] z-0"
+        className="pointer-events-none select-none fixed left-6 bottom-6 w-40 md:w-56 opacity-[0.04] z-0"
+        style={{
+          backgroundImage: "url('/assets/duncan-crest.png')",
+          backgroundSize: 'contain',
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'left bottom',
+          aspectRatio: '224 / 307',
+        }}
       />
-      <div className="absolute inset-0 tartan-texture opacity-[0.06]" />
+      <div className="absolute inset-0 tartan-texture opacity-[0.06] pointer-events-none" />
 
       <div className="container mx-auto px-6 relative z-10">
         <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
           <div className="space-y-10">
-            {/* Program Type */}
+            {/* Programs (radio list) */}
             <div id="configurator">
               <h2 className="font-display text-xl tracking-[0.2em] uppercase text-wool mb-4">
-                Program Type
+                Programs
               </h2>
               <div className="border border-gold/20 bg-highland/40 backdrop-blur-sm rounded-sm divide-y divide-gold/10">
                 {effectivePrograms.map((p) => {
@@ -388,10 +435,10 @@ export default function ProgramsConfigurator() {
               </div>
             </div>
 
-            {/* Program Rules */}
+            {/* Rules — per-rule color */}
             <div>
               <h2 className="font-display text-xl tracking-[0.2em] uppercase text-wool mb-4">
-                Program Rules
+                Rules
               </h2>
               <motion.div
                 key={program.id}
@@ -404,123 +451,88 @@ export default function ProgramsConfigurator() {
                   {program.name}
                 </h3>
                 <ul className="space-y-2.5">
-                  {program.rules.map((rule, i) => (
+                  {rules.map((rule, i) => (
                     <li key={i} className="flex items-start font-body text-sm text-wool/85">
-                      <TradingCandle variant={i % 3 === 2 ? 'red' : 'green'} />
-                      <span>{rule}</span>
+                      <TradingCandle variant={rule.color} />
+                      <span>{rule.text}</span>
                     </li>
                   ))}
                 </ul>
               </motion.div>
             </div>
 
-            {/* Account Size */}
+            {/* Accounts (read-only chips) */}
             <div>
               <h2 className="font-display text-xl tracking-[0.2em] uppercase text-wool mb-4">
-                Account Size
+                Accounts
               </h2>
               <div className="flex flex-wrap gap-2">
-                {program.sizes.map((s) => {
-                  const active = s === size;
-                  return (
-                    <button
-                      type="button"
-                      key={s}
-                      onClick={() => setSize(s)}
-                      className={`px-4 py-2 font-display text-sm tracking-wider rounded-sm border transition-all ${
-                        active
-                          ? 'bg-gradient-to-r from-gold to-gold-light text-pine border-gold shadow-md shadow-gold/30'
-                          : 'border-gold/25 text-wool/80 hover:border-gold/60 hover:text-gold'
-                      }`}
-                    >
-                      {formatPrice(s)}
-                    </button>
-                  );
-                })}
+                {program.sizes.map((s) => (
+                  <span
+                    key={s}
+                    className="px-4 py-2 font-display text-sm tracking-wider rounded-sm border border-gold/25 text-wool/80"
+                  >
+                    {formatPrice(s)}
+                  </span>
+                ))}
               </div>
             </div>
 
-            {/* Trading Platform */}
+            {/* Trading Platforms (read-only chips) */}
             <div>
               <h2 className="font-display text-xl tracking-[0.2em] uppercase text-wool mb-4">
-                Trading Platform
+                Trading Platforms
               </h2>
               <div className="flex flex-wrap gap-2">
-                {program.platforms.map((p) => {
-                  const active = p === platform;
-                  return (
-                    <button
-                      type="button"
-                      key={p}
-                      onClick={() => setPlatform(p)}
-                      className={`px-5 py-2 font-display text-xs tracking-[0.2em] uppercase rounded-sm border transition-all ${
-                        active
-                          ? 'bg-gold/15 border-gold text-gold'
-                          : 'border-gold/25 text-wool/80 hover:border-gold/60 hover:text-gold'
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  );
-                })}
+                {program.platforms.map((p) => (
+                  <span
+                    key={p}
+                    className="px-5 py-2 font-display text-xs tracking-[0.2em] uppercase rounded-sm border border-gold/25 text-wool/80"
+                  >
+                    {p}
+                  </span>
+                ))}
               </div>
             </div>
 
-            {/* Add-ons */}
+            {/* Enhancements (read-only list) */}
             <div>
               <h2 className="font-display text-xl tracking-[0.2em] uppercase text-wool mb-4">
-                Enhance Your Program{' '}
-                <span className="font-accent italic text-sm normal-case tracking-normal text-wool-muted">
-                  (Optional)
-                </span>
+                Enhancements
               </h2>
               <div className="border border-gold/20 bg-highland/40 backdrop-blur-sm rounded-sm divide-y divide-gold/10">
-                {program.addons.map((a) => {
-                  const checked = !!selectedAddons[a.id];
-                  const addonCost = Math.round(basePrice * (a.percent / 100));
-                  return (
-                    <label
-                      key={a.id}
-                      className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-gold/5 transition-colors"
-                    >
-                      <input
-                        type="checkbox"
-                        className="sr-only"
-                        checked={checked}
-                        onChange={() => toggleAddon(a)}
-                      />
-                      <span
-                        className={`w-5 h-5 rounded-sm border flex items-center justify-center transition-colors ${
-                          checked
-                            ? 'bg-gradient-to-br from-gold to-gold-light border-gold'
-                            : 'border-gold/40'
-                        }`}
-                      >
-                        {checked && (
-                          <svg className="w-3.5 h-3.5 text-pine" viewBox="0 0 20 20" fill="currentColor">
-                            <path
-                              fillRule="evenodd"
-                              d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.8a1 1 0 011.4 0z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        )}
-                      </span>
+                {program.addons.length === 0 ? (
+                  <div className="px-5 py-4 font-body text-sm text-wool-muted italic">
+                    No add-ons available for this program.
+                  </div>
+                ) : (
+                  program.addons.map((a) => (
+                    <div key={a.id} className="flex items-center gap-4 px-5 py-4">
+                      <TradingCandle variant="green" />
                       <div className="flex-1">
-                        <div className="font-display text-sm tracking-wider text-gold">{a.label}</div>
-                        <div className="font-body text-xs text-wool-muted mt-0.5">
-                          +{a.percent}%{a.group && ' (one option only)'}
+                        <div className="font-display text-sm tracking-wider text-gold">
+                          {a.label}
                         </div>
                       </div>
-                      <div className="font-display text-sm text-wool/80">+{formatPrice(addonCost)}</div>
-                    </label>
-                  );
-                })}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
             {/* Terms + Submit */}
             <div className="border-t border-gold/20 pt-6 space-y-5">
+              {notice && (
+                <p
+                  className={`font-body text-sm px-4 py-3 rounded-sm border ${
+                    notice.kind === 'err'
+                      ? 'text-heritage bg-heritage/10 border-heritage/30'
+                      : 'text-gold bg-gold/10 border-gold/30'
+                  }`}
+                >
+                  {notice.msg}
+                </p>
+              )}
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -530,7 +542,9 @@ export default function ProgramsConfigurator() {
                 />
                 <span
                   className={`mt-0.5 w-5 h-5 rounded-sm border flex items-center justify-center shrink-0 ${
-                    agreed ? 'bg-gradient-to-br from-gold to-gold-light border-gold' : 'border-gold/40'
+                    agreed
+                      ? 'bg-gradient-to-br from-gold to-gold-light border-gold'
+                      : 'border-gold/40'
                   }`}
                 >
                   {agreed && (
@@ -545,32 +559,22 @@ export default function ProgramsConfigurator() {
                 </span>
                 <span className="font-body text-xs text-wool-muted leading-relaxed">
                   I confirm that I have read and agree to the{' '}
-                  <a href="/terms" className="text-gold underline underline-offset-2">
+                  <a
+                    href="/terms"
+                    className="text-gold underline underline-offset-2"
+                  >
                     Terms and Conditions
                   </a>
                   .
                 </span>
               </label>
-
-              {notice && (
-                <div
-                  className={`font-body text-sm border px-4 py-3 rounded-sm ${
-                    notice.kind === 'ok'
-                      ? 'border-gold/40 bg-gold/5 text-gold'
-                      : 'border-heritage/40 bg-heritage/10 text-heritage'
-                  }`}
-                >
-                  {notice.msg}
-                </div>
-              )}
-
               <motion.button
                 type="submit"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 className="w-full gold-gradient text-background font-display text-sm tracking-[0.2em] uppercase py-3.5 rounded-sm shadow-lg shadow-gold/20 hover:shadow-gold/40 transition-shadow"
               >
-                Start My Program — {formatPrice(total)}
+                Start Trading
               </motion.button>
             </div>
           </div>
