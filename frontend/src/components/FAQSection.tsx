@@ -2,13 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import { faqCategories as fallback } from '@/lib/faq';
 import { getFaqCategories, type PublicFaqCategory } from '@/lib/api';
 
 /**
- * Tabbed FAQ with collapsible items. Fetches live data from the API on
- * mount; renders the hardcoded fallback until the response arrives or
- * if the API is unreachable.
+ * Tabbed FAQ with collapsible items. Answers render as Markdown
+ * (GFM + soft line breaks), so admins can use blank lines for
+ * paragraphs, `- ` for bullets, `**bold**` for emphasis, `[label](url)`
+ * for links, and a single Enter for a line break. Plain text without
+ * any of that still renders correctly.
+ *
+ * Fetches live data from the API on mount; renders the hardcoded
+ * fallback until the response arrives or if the API is unreachable.
  */
 export default function FAQSection({
   eyebrow = 'Questions',
@@ -119,8 +127,60 @@ export default function FAQSection({
                     </span>
                   </button>
                   {open && (
-                    <div className="font-body text-sm text-wool-muted leading-relaxed pb-5">
-                      {faq.a}
+                    <div className="pb-5 font-body text-sm text-wool-muted leading-relaxed faq-answer">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkBreaks]}
+                        components={{
+                          // Constrain headings inside an answer so they
+                          // don't fight the FAQ question typography.
+                          h1: (props) => (
+                            <p
+                              className="font-display text-sm tracking-wider text-gold uppercase mt-3 mb-1"
+                              {...props}
+                            />
+                          ),
+                          h2: (props) => (
+                            <p
+                              className="font-display text-sm tracking-wider text-gold uppercase mt-3 mb-1"
+                              {...props}
+                            />
+                          ),
+                          h3: (props) => (
+                            <p
+                              className="font-display text-xs tracking-wider text-gold uppercase mt-3 mb-1"
+                              {...props}
+                            />
+                          ),
+                          p: (props) => <p className="mb-3 last:mb-0" {...props} />,
+                          ul: (props) => (
+                            <ul className="list-disc pl-5 mb-3 last:mb-0 space-y-1" {...props} />
+                          ),
+                          ol: (props) => (
+                            <ol className="list-decimal pl-5 mb-3 last:mb-0 space-y-1" {...props} />
+                          ),
+                          li: (props) => <li className="leading-relaxed" {...props} />,
+                          a: (props) => (
+                            <a
+                              className="text-gold underline underline-offset-2 hover:text-gold-light break-words"
+                              target={props.href?.startsWith('http') ? '_blank' : undefined}
+                              rel={
+                                props.href?.startsWith('http') ? 'noopener noreferrer' : undefined
+                              }
+                              {...props}
+                            />
+                          ),
+                          strong: (props) => <strong className="text-wool" {...props} />,
+                          em: (props) => <em className="italic" {...props} />,
+                          code: (props) => (
+                            <code
+                              className="px-1.5 py-0.5 rounded-sm bg-pine/70 border border-gold/15 text-gold text-[12px]"
+                              {...props}
+                            />
+                          ),
+                        }}
+                      >
+                        {faq.a}
+                      </ReactMarkdown>
                     </div>
                   )}
                 </div>

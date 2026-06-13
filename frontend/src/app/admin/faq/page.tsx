@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import AdminShell from '@/components/AdminShell';
 import {
   listAdminFaq,
@@ -222,10 +225,20 @@ export default function AdminFaqPage() {
                         <textarea
                           value={draft.a}
                           onChange={(e) => setDraft({ ...draft, a: e.target.value })}
-                          placeholder="Answer"
-                          rows={3}
-                          className={`${inputClass} resize-y`}
+                          placeholder={
+                            'Answer — supports Markdown.\n\nBlank line between paragraphs.\n- Bullet points like this\n- Use **bold** and *italic*\n- Links: [label](https://example.com)'
+                          }
+                          rows={10}
+                          className={`${inputClass} resize-y font-mono text-[13px] leading-relaxed`}
                         />
+                        <p className="font-body text-[11px] text-wool-muted/60">
+                          Supports Markdown. Use blank lines between paragraphs,{' '}
+                          <code className="text-gold">- item</code> for bullet points,{' '}
+                          <code className="text-gold">**bold**</code>,{' '}
+                          <code className="text-gold">*italic*</code>, and{' '}
+                          <code className="text-gold">[label](url)</code> for links. Single
+                          line breaks are preserved.
+                        </p>
                         <div className="flex items-center gap-3">
                           <button
                             onClick={() => handleSaveItem(it.id)}
@@ -245,10 +258,33 @@ export default function AdminFaqPage() {
                     ) : (
                       <div className="flex items-start gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="font-display text-sm text-wool mb-1">{it.q}</p>
-                          <p className="font-body text-xs text-wool-muted leading-relaxed">
-                            {it.a}
-                          </p>
+                          <p className="font-display text-sm text-wool mb-2">{it.q}</p>
+                          <div className="font-body text-xs text-wool-muted leading-relaxed admin-faq-preview">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm, remarkBreaks]}
+                              components={{
+                                p: (props) => <p className="mb-2 last:mb-0" {...props} />,
+                                ul: (props) => (
+                                  <ul className="list-disc pl-5 mb-2 last:mb-0 space-y-0.5" {...props} />
+                                ),
+                                ol: (props) => (
+                                  <ol className="list-decimal pl-5 mb-2 last:mb-0 space-y-0.5" {...props} />
+                                ),
+                                a: (props) => (
+                                  <a className="text-gold underline break-words" {...props} />
+                                ),
+                                strong: (props) => <strong className="text-wool" {...props} />,
+                                code: (props) => (
+                                  <code
+                                    className="px-1 py-0.5 rounded-sm bg-pine/60 border border-gold/15 text-gold text-[11px]"
+                                    {...props}
+                                  />
+                                ),
+                              }}
+                            >
+                              {it.a}
+                            </ReactMarkdown>
+                          </div>
                         </div>
                         <div className="flex flex-col gap-1 shrink-0">
                           <button
@@ -295,10 +331,16 @@ export default function AdminFaqPage() {
                       [cat.id]: { q: prev[cat.id]?.q || '', a: e.target.value },
                     }))
                   }
-                  placeholder="Answer…"
-                  rows={2}
-                  className={`${inputClass} resize-none mb-2`}
+                  placeholder="Answer — Markdown supported"
+                  rows={5}
+                  className={`${inputClass} resize-y mb-1 font-mono text-[13px] leading-relaxed`}
                 />
+                <p className="font-body text-[10px] text-wool-muted/60 mb-2">
+                  Markdown supported: blank lines = paragraphs,{' '}
+                  <code className="text-gold">- item</code> = bullets,{' '}
+                  <code className="text-gold">**bold**</code>,{' '}
+                  <code className="text-gold">[label](url)</code>.
+                </p>
                 <button
                   onClick={() => handleAddItem(cat)}
                   disabled={busy}
